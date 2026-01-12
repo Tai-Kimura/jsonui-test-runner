@@ -1,0 +1,289 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jsonui.dev/schemas/actions.schema.json",
+  "title": "JsonUI Test Actions and Assertions",
+  "description": "Definitions for test actions and assertions used in JsonUI test cases",
+
+  "definitions": {
+    "elementId": {
+      "type": "string",
+      "description": "The id attribute of the target element in JsonUI layout",
+      "minLength": 1
+    },
+
+    "direction": {
+      "type": "string",
+      "enum": ["up", "down", "left", "right"],
+      "description": "Direction for scroll/swipe actions"
+    },
+
+    "action": {
+      "oneOf": [
+        { "$ref": "#/definitions/tapAction" },
+        { "$ref": "#/definitions/doubleTapAction" },
+        { "$ref": "#/definitions/longPressAction" },
+        { "$ref": "#/definitions/inputAction" },
+        { "$ref": "#/definitions/clearAction" },
+        { "$ref": "#/definitions/scrollAction" },
+        { "$ref": "#/definitions/swipeAction" },
+        { "$ref": "#/definitions/waitForAction" },
+        { "$ref": "#/definitions/waitAction" },
+        { "$ref": "#/definitions/backAction" },
+        { "$ref": "#/definitions/screenshotAction" }
+      ]
+    },
+
+    "tapAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "tap" },
+        "id": { "$ref": "#/definitions/elementId" }
+      },
+      "required": ["action", "id"],
+      "additionalProperties": false
+    },
+
+    "doubleTapAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "doubleTap" },
+        "id": { "$ref": "#/definitions/elementId" }
+      },
+      "required": ["action", "id"],
+      "additionalProperties": false
+    },
+
+    "longPressAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "longPress" },
+        "id": { "$ref": "#/definitions/elementId" },
+        "duration": {
+          "type": "integer",
+          "minimum": 100,
+          "default": 500,
+          "description": "Duration in milliseconds"
+        }
+      },
+      "required": ["action", "id"],
+      "additionalProperties": false
+    },
+
+    "inputAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "input" },
+        "id": { "$ref": "#/definitions/elementId" },
+        "value": {
+          "type": "string",
+          "description": "Text to input"
+        }
+      },
+      "required": ["action", "id", "value"],
+      "additionalProperties": false
+    },
+
+    "clearAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "clear" },
+        "id": { "$ref": "#/definitions/elementId" }
+      },
+      "required": ["action", "id"],
+      "additionalProperties": false
+    },
+
+    "scrollAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "scroll" },
+        "id": { "$ref": "#/definitions/elementId" },
+        "direction": { "$ref": "#/definitions/direction" },
+        "amount": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Scroll amount in pixels (optional)"
+        }
+      },
+      "required": ["action", "id", "direction"],
+      "additionalProperties": false
+    },
+
+    "swipeAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "swipe" },
+        "id": { "$ref": "#/definitions/elementId" },
+        "direction": { "$ref": "#/definitions/direction" }
+      },
+      "required": ["action", "id", "direction"],
+      "additionalProperties": false
+    },
+
+    "waitForAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "waitFor" },
+        "id": { "$ref": "#/definitions/elementId" },
+        "timeout": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 5000,
+          "description": "Timeout in milliseconds"
+        }
+      },
+      "required": ["action", "id"],
+      "additionalProperties": false
+    },
+
+    "waitAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "wait" },
+        "ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Wait duration in milliseconds"
+        }
+      },
+      "required": ["action", "ms"],
+      "additionalProperties": false
+    },
+
+    "backAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "back" }
+      },
+      "required": ["action"],
+      "additionalProperties": false
+    },
+
+    "screenshotAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "screenshot" },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Screenshot file name (without extension)"
+        }
+      },
+      "required": ["action", "name"],
+      "additionalProperties": false
+    },
+
+    "assertion": {
+      "oneOf": [
+        { "$ref": "#/definitions/visibleAssertion" },
+        { "$ref": "#/definitions/notVisibleAssertion" },
+        { "$ref": "#/definitions/enabledAssertion" },
+        { "$ref": "#/definitions/disabledAssertion" },
+        { "$ref": "#/definitions/textAssertion" },
+        { "$ref": "#/definitions/countAssertion" },
+        { "$ref": "#/definitions/stateAssertion" }
+      ]
+    },
+
+    "visibleAssertion": {
+      "type": "object",
+      "properties": {
+        "assert": { "const": "visible" },
+        "id": { "$ref": "#/definitions/elementId" }
+      },
+      "required": ["assert", "id"],
+      "additionalProperties": false
+    },
+
+    "notVisibleAssertion": {
+      "type": "object",
+      "properties": {
+        "assert": { "const": "notVisible" },
+        "id": { "$ref": "#/definitions/elementId" }
+      },
+      "required": ["assert", "id"],
+      "additionalProperties": false
+    },
+
+    "enabledAssertion": {
+      "type": "object",
+      "properties": {
+        "assert": { "const": "enabled" },
+        "id": { "$ref": "#/definitions/elementId" }
+      },
+      "required": ["assert", "id"],
+      "additionalProperties": false
+    },
+
+    "disabledAssertion": {
+      "type": "object",
+      "properties": {
+        "assert": { "const": "disabled" },
+        "id": { "$ref": "#/definitions/elementId" }
+      },
+      "required": ["assert", "id"],
+      "additionalProperties": false
+    },
+
+    "textAssertion": {
+      "type": "object",
+      "properties": {
+        "assert": { "const": "text" },
+        "id": { "$ref": "#/definitions/elementId" },
+        "equals": {
+          "type": "string",
+          "description": "Exact text match"
+        },
+        "contains": {
+          "type": "string",
+          "description": "Partial text match"
+        }
+      },
+      "required": ["assert", "id"],
+      "oneOf": [
+        { "required": ["equals"] },
+        { "required": ["contains"] }
+      ],
+      "additionalProperties": false
+    },
+
+    "countAssertion": {
+      "type": "object",
+      "properties": {
+        "assert": { "const": "count" },
+        "id": { "$ref": "#/definitions/elementId" },
+        "equals": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Expected element count"
+        }
+      },
+      "required": ["assert", "id", "equals"],
+      "additionalProperties": false
+    },
+
+    "stateAssertion": {
+      "type": "object",
+      "properties": {
+        "assert": { "const": "state" },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Dot-notation path to ViewModel property (e.g., 'user.isLoggedIn')"
+        },
+        "equals": {
+          "description": "Expected value (any type)"
+        }
+      },
+      "required": ["assert", "path", "equals"],
+      "additionalProperties": false
+    },
+
+    "step": {
+      "oneOf": [
+        { "$ref": "#/definitions/action" },
+        { "$ref": "#/definitions/assertion" }
+      ]
+    }
+  }
+}
