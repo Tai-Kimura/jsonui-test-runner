@@ -64,8 +64,8 @@ func testWithInlineJSON() throws {
     let json = """
     {
         "type": "screen",
-        "source": { "layout": "Layouts/Login.json" },
-        "metadata": { "name": "Login Test" },
+        "source": { "layout": "layouts/login.json" },
+        "metadata": { "name": "login_test" },
         "cases": [
             {
                 "name": "初期表示確認",
