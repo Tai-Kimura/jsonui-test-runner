@@ -249,6 +249,9 @@ if [ -n "$TEST_TOOLS_PATH" ]; then
         print_info "Installed package"
     fi
 
+    # Clean up egg-info directory created by editable install
+    rm -rf jsonui_test_cli.egg-info
+
     print_info "jsonui_test_cli installed successfully"
 else
     print_error "test_tools not found in the downloaded version"
