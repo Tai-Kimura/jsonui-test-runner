@@ -46,7 +46,7 @@ class LoginUITests: XCTestCase {
     func testLoginScreen() throws {
         // テストJSONをバンドルから読み込み
         let result = try runJsonUITest(
-            resourceName: "Login.test",
+            resourceName: "login.test",
             bundle: Bundle(for: type(of: self)),
             app: app
         )
@@ -93,7 +93,7 @@ func testWithCustomConfig() throws {
     config.defaultTimeout = 10.0
 
     let result = try runJsonUITest(
-        resourceName: "Login.test",
+        resourceName: "login.test",
         bundle: Bundle(for: type(of: self)),
         app: app,
         config: config
@@ -143,7 +143,7 @@ func testWithStateValidation() throws {
         stateProvider: stateProvider
     )
 
-    let test = try JsonUITest.loadFromBundle(name: "Login.test")
+    let test = try JsonUITest.loadFromBundle(name: "login.test")
 
     switch test {
     case .screen(let screenTest):
@@ -158,7 +158,7 @@ func testWithStateValidation() throws {
 
 ## テストJSONファイルの配置
 
-1. テストJSONファイルを作成 (例: `Login.test.json`)
+1. テストJSONファイルを作成 (例: `login.test.json`)
 2. UITestターゲットの "Build Phases" > "Copy Bundle Resources" に追加
 3. テストコードで `Bundle(for: type(of: self))` を使って読み込み
 
