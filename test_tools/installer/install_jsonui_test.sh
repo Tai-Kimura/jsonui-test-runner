@@ -242,15 +242,16 @@ if [ -n "$TEST_TOOLS_PATH" ]; then
     print_info "Installing Python package..."
 
     if [ "$DEV_MODE" = true ]; then
-        pip3 install -e ".[dev]"
+        pip3 install ".[dev]"
         print_info "Installed with development dependencies"
     else
-        pip3 install -e .
+        pip3 install .
         print_info "Installed package"
     fi
 
-    # Clean up egg-info directory created by editable install
-    rm -rf jsonui_test_cli.egg-info
+    # Clean up build artifacts
+    rm -rf jsonui_test_cli.egg-info build
+    rm -f pyproject.toml jsonui-test
 
     print_info "jsonui_test_cli installed successfully"
 else
