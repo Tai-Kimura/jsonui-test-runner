@@ -84,6 +84,7 @@ public class XCUITestAssertionExecutor: AssertionExecutor {
             action: flowStep.action,
             assert: flowStep.assert,
             id: flowStep.id,
+            ids: flowStep.ids,
             value: flowStep.value,
             direction: flowStep.direction,
             duration: flowStep.duration,
@@ -106,7 +107,7 @@ public class XCUITestAssertionExecutor: AssertionExecutor {
             throw AssertionError.missingParameter(assertion: "visible", parameter: "id")
         }
 
-        let element = app.descendants(matching: .any)[id]
+        let element = findElementQuery(id: id, in: app)
 
         // Wait for element and check visibility
         let exists = element.waitForExistence(timeout: defaultTimeout)
@@ -122,7 +123,7 @@ public class XCUITestAssertionExecutor: AssertionExecutor {
             throw AssertionError.missingParameter(assertion: "notVisible", parameter: "id")
         }
 
-        let element = app.descendants(matching: .any)[id]
+        let element = findElementQuery(id: id, in: app)
 
         // Give a short wait to ensure state is settled
         Thread.sleep(forTimeInterval: 0.5)
@@ -239,8 +240,15 @@ public class XCUITestAssertionExecutor: AssertionExecutor {
 
     // MARK: - Helper Methods
 
+    /// Fast element query using accessibilityIdentifier matching
+    private func findElementQuery(id: String, in app: XCUIApplication) -> XCUIElement {
+        // Use firstMatch for faster lookup - it returns immediately when found
+        // instead of scanning the entire hierarchy
+        return app.descendants(matching: .any).matching(identifier: id).firstMatch
+    }
+
     private func findElement(id: String, in app: XCUIApplication) throws -> XCUIElement {
-        let element = app.descendants(matching: .any)[id]
+        let element = findElementQuery(id: id, in: app)
 
         if !element.waitForExistence(timeout: defaultTimeout) {
             throw AssertionError.elementNotFound(id: id)

@@ -12,6 +12,7 @@ public enum ActionError: Error, LocalizedError {
     case unknownAction(action: String)
     case missingParameter(action: String, parameter: String)
     case timeout(id: String, timeout: Int)
+    case timeoutAny(ids: [String], timeout: Int)
     case actionFailed(action: String, reason: String)
 
     public var errorDescription: String? {
@@ -24,6 +25,8 @@ public enum ActionError: Error, LocalizedError {
             return "Missing parameter '\(parameter)' for action '\(action)'"
         case .timeout(let id, let timeout):
             return "Timeout waiting for element '\(id)' after \(timeout)ms"
+        case .timeoutAny(let ids, let timeout):
+            return "Timeout waiting for any of elements '\(ids.joined(separator: ", "))' after \(timeout)ms"
         case .actionFailed(let action, let reason):
             return "Action '\(action)' failed: \(reason)"
         }
@@ -59,6 +62,8 @@ public class XCUITestActionExecutor: ActionExecutor {
             try executeSwipe(step: step, in: app)
         case "waitFor":
             try executeWaitFor(step: step, in: app)
+        case "waitForAny":
+            try executeWaitForAny(step: step, in: app)
         case "wait":
             try executeWait(step: step)
         case "back":
@@ -80,6 +85,7 @@ public class XCUITestActionExecutor: ActionExecutor {
             action: flowStep.action,
             assert: flowStep.assert,
             id: flowStep.id,
+            ids: flowStep.ids,
             value: flowStep.value,
             direction: flowStep.direction,
             duration: flowStep.duration,
@@ -207,12 +213,34 @@ public class XCUITestActionExecutor: ActionExecutor {
         }
 
         let timeout = TimeInterval(step.timeout ?? 5000) / 1000.0
-        let element = app.descendants(matching: .any)[id]
+        let element = findElementQuery(id: id, in: app)
 
         let exists = element.waitForExistence(timeout: timeout)
         if !exists {
             throw ActionError.timeout(id: id, timeout: step.timeout ?? 5000)
         }
+    }
+
+    private func executeWaitForAny(step: TestStep, in app: XCUIApplication) throws {
+        guard let ids = step.ids, !ids.isEmpty else {
+            throw ActionError.missingParameter(action: "waitForAny", parameter: "ids")
+        }
+
+        let timeout = TimeInterval(step.timeout ?? 5000) / 1000.0
+        let startTime = Date()
+
+        // Poll until one element exists or timeout
+        while Date().timeIntervalSince(startTime) < timeout {
+            for id in ids {
+                let element = findElementQuery(id: id, in: app)
+                if element.exists {
+                    return // Found one, success
+                }
+            }
+            Thread.sleep(forTimeInterval: 0.1) // Poll every 100ms
+        }
+
+        throw ActionError.timeoutAny(ids: ids, timeout: step.timeout ?? 5000)
     }
 
     private func executeWait(step: TestStep) throws {
@@ -255,8 +283,15 @@ public class XCUITestActionExecutor: ActionExecutor {
 
     // MARK: - Helper Methods
 
+    /// Fast element query using accessibilityIdentifier matching
+    private func findElementQuery(id: String, in app: XCUIApplication) -> XCUIElement {
+        // Use firstMatch for faster lookup - it returns immediately when found
+        // instead of scanning the entire hierarchy
+        return app.descendants(matching: .any).matching(identifier: id).firstMatch
+    }
+
     private func findElement(id: String, in app: XCUIApplication) throws -> XCUIElement {
-        let element = app.descendants(matching: .any)[id]
+        let element = findElementQuery(id: id, in: app)
 
         // Wait briefly for element to appear
         if !element.waitForExistence(timeout: defaultTimeout) {
