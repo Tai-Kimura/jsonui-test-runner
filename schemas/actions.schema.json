@@ -30,7 +30,8 @@
         { "$ref": "#/definitions/waitAction" },
         { "$ref": "#/definitions/backAction" },
         { "$ref": "#/definitions/screenshotAction" },
-        { "$ref": "#/definitions/alertTapAction" }
+        { "$ref": "#/definitions/alertTapAction" },
+        { "$ref": "#/definitions/selectOptionAction" }
       ]
     },
 
@@ -195,6 +196,35 @@
         }
       },
       "required": ["action", "button"],
+      "additionalProperties": false
+    },
+
+    "selectOptionAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "selectOption" },
+        "id": { "$ref": "#/definitions/elementId" },
+        "value": {
+          "type": "string",
+          "description": "Option value to select"
+        },
+        "label": {
+          "type": "string",
+          "description": "Option label (visible text) to select"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Option index to select (0-based)"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 5000,
+          "description": "Timeout in milliseconds"
+        }
+      },
+      "required": ["action", "id"],
       "additionalProperties": false
     },
 

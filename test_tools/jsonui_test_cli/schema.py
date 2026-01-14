@@ -66,6 +66,11 @@ SUPPORTED_ACTIONS = {
         "description": "Tap a button in a native alert dialog",
         "required": ["button"],
         "optional": ["timeout"]
+    },
+    "selectOption": {
+        "description": "Select an option from a select/dropdown element (Web only)",
+        "required": ["id"],
+        "optional": ["value", "label", "index", "timeout"]
     }
 }
 
@@ -119,7 +124,7 @@ VALID_CASE_KEYS = ["name", "description", "skip", "platform", "initialState", "s
 VALID_STEP_KEYS = [
     "action", "assert", "id", "ids", "value", "direction",
     "duration", "timeout", "ms", "name", "equals", "contains",
-    "path", "amount", "screen", "text", "button"
+    "path", "amount", "screen", "text", "button", "label", "index"
 ]
 
 # Parameter descriptions
@@ -137,5 +142,7 @@ PARAMETER_DESCRIPTIONS = {
     "amount": "Scroll amount (platform-specific)",
     "screen": "Screen identifier (for flow tests)",
     "text": "Specific text portion to tap within element (for tap action)",
-    "button": "Button text to tap in alert dialog (for alertTap action)"
+    "button": "Button text to tap in alert dialog (for alertTap action)",
+    "label": "Option label (visible text) to select (for selectOption action)",
+    "index": "Option index to select, 0-based (for selectOption action)"
 }
