@@ -37,7 +37,11 @@
       "type": "object",
       "properties": {
         "action": { "const": "tap" },
-        "id": { "$ref": "#/definitions/elementId" }
+        "id": { "$ref": "#/definitions/elementId" },
+        "text": {
+          "type": "string",
+          "description": "Specific text portion to tap within the element (e.g., tap '利用規約' within '利用規約に同意する')"
+        }
       },
       "required": ["action", "id"],
       "additionalProperties": false

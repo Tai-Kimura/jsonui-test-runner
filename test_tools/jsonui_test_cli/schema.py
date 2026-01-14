@@ -5,7 +5,7 @@ SUPPORTED_ACTIONS = {
     "tap": {
         "description": "Tap on an element",
         "required": ["id"],
-        "optional": ["timeout"]
+        "optional": ["text", "timeout"]
     },
     "doubleTap": {
         "description": "Double tap on an element",
@@ -114,7 +114,7 @@ VALID_CASE_KEYS = ["name", "description", "skip", "platform", "initialState", "s
 VALID_STEP_KEYS = [
     "action", "assert", "id", "ids", "value", "direction",
     "duration", "timeout", "ms", "name", "equals", "contains",
-    "path", "amount", "screen"
+    "path", "amount", "screen", "text"
 ]
 
 # Parameter descriptions
@@ -130,5 +130,6 @@ PARAMETER_DESCRIPTIONS = {
     "equals": "Exact value to match",
     "contains": "Substring to match",
     "amount": "Scroll amount (platform-specific)",
-    "screen": "Screen identifier (for flow tests)"
+    "screen": "Screen identifier (for flow tests)",
+    "text": "Specific text portion to tap within element (for tap action)"
 }
