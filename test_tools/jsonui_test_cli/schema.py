@@ -68,7 +68,7 @@ SUPPORTED_ACTIONS = {
         "optional": ["timeout"]
     },
     "selectOption": {
-        "description": "Select an option from a select/dropdown element (Web: standard select, iOS: SelectBox picker)",
+        "description": "Select an option from a select/dropdown element (Web: standard select, iOS/Android: SelectBox picker)",
         "required": ["id"],
         "optional": ["value", "label", "index", "timeout"]
     }
