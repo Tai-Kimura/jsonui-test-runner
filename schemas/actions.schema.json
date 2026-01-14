@@ -29,7 +29,8 @@
         { "$ref": "#/definitions/waitForAction" },
         { "$ref": "#/definitions/waitAction" },
         { "$ref": "#/definitions/backAction" },
-        { "$ref": "#/definitions/screenshotAction" }
+        { "$ref": "#/definitions/screenshotAction" },
+        { "$ref": "#/definitions/alertTapAction" }
       ]
     },
 
@@ -174,6 +175,26 @@
         }
       },
       "required": ["action", "name"],
+      "additionalProperties": false
+    },
+
+    "alertTapAction": {
+      "type": "object",
+      "properties": {
+        "action": { "const": "alertTap" },
+        "button": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Button text to tap in the alert dialog (e.g., 'OK', 'Cancel', 'Delete')"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 5000,
+          "description": "Timeout in milliseconds to wait for alert to appear"
+        }
+      },
+      "required": ["action", "button"],
       "additionalProperties": false
     },
 

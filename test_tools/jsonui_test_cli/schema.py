@@ -61,6 +61,11 @@ SUPPORTED_ACTIONS = {
         "description": "Take a screenshot",
         "required": ["name"],
         "optional": []
+    },
+    "alertTap": {
+        "description": "Tap a button in a native alert dialog",
+        "required": ["button"],
+        "optional": ["timeout"]
     }
 }
 
@@ -114,7 +119,7 @@ VALID_CASE_KEYS = ["name", "description", "skip", "platform", "initialState", "s
 VALID_STEP_KEYS = [
     "action", "assert", "id", "ids", "value", "direction",
     "duration", "timeout", "ms", "name", "equals", "contains",
-    "path", "amount", "screen", "text"
+    "path", "amount", "screen", "text", "button"
 ]
 
 # Parameter descriptions
@@ -131,5 +136,6 @@ PARAMETER_DESCRIPTIONS = {
     "contains": "Substring to match",
     "amount": "Scroll amount (platform-specific)",
     "screen": "Screen identifier (for flow tests)",
-    "text": "Specific text portion to tap within element (for tap action)"
+    "text": "Specific text portion to tap within element (for tap action)",
+    "button": "Button text to tap in alert dialog (for alertTap action)"
 }
