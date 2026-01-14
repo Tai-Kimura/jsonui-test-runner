@@ -72,6 +72,8 @@ public class XCUITestActionExecutor: ActionExecutor {
             try executeScreenshot(step: step, in: app)
         case "alertTap":
             try executeAlertTap(step: step, in: app)
+        case "selectOption":
+            try executeSelectOption(step: step, in: app)
         default:
             throw ActionError.unknownAction(action: action)
         }
@@ -99,7 +101,9 @@ public class XCUITestActionExecutor: ActionExecutor {
             contains: flowStep.contains,
             path: flowStep.path,
             amount: flowStep.amount,
-            button: flowStep.button
+            button: flowStep.button,
+            label: flowStep.label,
+            index: flowStep.index
         )
 
         try execute(step: step, in: app)
@@ -322,6 +326,78 @@ public class XCUITestActionExecutor: ActionExecutor {
         }
 
         throw ActionError.actionFailed(action: "alertTap", reason: "Button '\(buttonText)' not found in alert")
+    }
+
+    private func executeSelectOption(step: TestStep, in app: XCUIApplication) throws {
+        guard let id = step.id else {
+            throw ActionError.missingParameter(action: "selectOption", parameter: "id")
+        }
+
+        let timeout = TimeInterval(step.timeout ?? 5000) / 1000.0
+
+        // Step 1: Tap the SelectBox to open the picker sheet
+        let selectBox = try findElement(id: id, in: app)
+        selectBox.tap()
+
+        // Step 2: Wait for the picker to appear
+        let pickerView = app.descendants(matching: .any).matching(identifier: "sjui_x7q_picker").firstMatch
+        let datePicker = app.descendants(matching: .any).matching(identifier: "sjui_x7q_datePicker").firstMatch
+
+        let pickerAppeared = pickerView.waitForExistence(timeout: timeout)
+        let datePickerAppeared = datePicker.waitForExistence(timeout: timeout)
+
+        guard pickerAppeared || datePickerAppeared else {
+            throw ActionError.actionFailed(action: "selectOption", reason: "Picker sheet did not appear within \(Int(timeout * 1000))ms")
+        }
+
+        // Step 3: Select the option
+        if pickerAppeared && pickerView.isHittable {
+            // Normal picker (UIPickerView)
+            try selectPickerValue(pickerView: pickerView, step: step, in: app)
+        } else if datePickerAppeared && datePicker.isHittable {
+            // Date picker - currently not fully supported for programmatic selection
+            // Users should use value parameter with date string
+            throw ActionError.actionFailed(action: "selectOption", reason: "Date picker selection is not yet supported. Use tap action to interact with date picker directly.")
+        }
+
+        // Step 4: Tap Done button to confirm selection
+        let doneButton = app.descendants(matching: .any).matching(identifier: "sjui_x7q_done").firstMatch
+        if doneButton.waitForExistence(timeout: 2.0) {
+            doneButton.tap()
+        }
+    }
+
+    private func selectPickerValue(pickerView: XCUIElement, step: TestStep, in app: XCUIApplication) throws {
+        // Get the picker wheels
+        let pickerWheels = pickerView.pickerWheels
+
+        if pickerWheels.count == 0 {
+            throw ActionError.actionFailed(action: "selectOption", reason: "No picker wheels found in picker view")
+        }
+
+        // Select by label (text value)
+        if let label = step.label {
+            let wheel = pickerWheels.firstMatch
+            wheel.adjust(toPickerWheelValue: label)
+            return
+        }
+
+        // Select by value (same as label for UIPickerView)
+        if let value = step.value {
+            let wheel = pickerWheels.firstMatch
+            wheel.adjust(toPickerWheelValue: value)
+            return
+        }
+
+        // Select by index - need to scroll to the position
+        if let index = step.index {
+            // For index-based selection, we need to know the items
+            // XCUITest doesn't provide direct index-based picker selection
+            // We'd need the picker data source, which we don't have access to
+            throw ActionError.actionFailed(action: "selectOption", reason: "Index-based selection is not supported for iOS pickers. Use 'label' or 'value' instead.")
+        }
+
+        throw ActionError.missingParameter(action: "selectOption", parameter: "label or value")
     }
 
     // MARK: - Helper Methods
