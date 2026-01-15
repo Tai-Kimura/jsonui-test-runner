@@ -74,6 +74,8 @@ public class XCUITestActionExecutor: ActionExecutor {
             try executeAlertTap(step: step, in: app)
         case "selectOption":
             try executeSelectOption(step: step, in: app)
+        case "tapItem":
+            try executeTapItem(step: step, in: app)
         default:
             throw ActionError.unknownAction(action: action)
         }
@@ -529,6 +531,27 @@ public class XCUITestActionExecutor: ActionExecutor {
                          "July", "August", "September", "October", "November", "December",
                          "Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
         return monthNames.contains { value.contains($0) }
+    }
+
+    private func executeTapItem(step: TestStep, in app: XCUIApplication) throws {
+        guard let id = step.id else {
+            throw ActionError.missingParameter(action: "tapItem", parameter: "id")
+        }
+        guard let index = step.index else {
+            throw ActionError.missingParameter(action: "tapItem", parameter: "index")
+        }
+
+        let timeout = TimeInterval(step.timeout ?? 5000) / 1000.0
+
+        // Find the item using the generated testTag pattern: {collectionId}_item_{index}
+        let itemId = "\(id)_item_\(index)"
+        let element = app.descendants(matching: .any).matching(identifier: itemId).firstMatch
+
+        if !element.waitForExistence(timeout: timeout) {
+            throw ActionError.elementNotFound(id: itemId)
+        }
+
+        element.tap()
     }
 
     // MARK: - Helper Methods

@@ -71,6 +71,11 @@ SUPPORTED_ACTIONS = {
         "description": "Select an option from a select/dropdown element (Web: standard select, iOS/Android: SelectBox picker)",
         "required": ["id"],
         "optional": ["value", "label", "index", "timeout"]
+    },
+    "tapItem": {
+        "description": "Tap an item at a specific index in a collection (CollectionView, List, etc.)",
+        "required": ["id", "index"],
+        "optional": ["timeout"]
     }
 }
 
