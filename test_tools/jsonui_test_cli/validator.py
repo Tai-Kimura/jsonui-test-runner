@@ -267,18 +267,6 @@ class TestValidator:
                     message="ids must be a non-empty array"
                 ))
 
-        # Warn about selectOption with index on iOS
-        if action == "selectOption" and "index" in step:
-            # Check if test is targeting iOS
-            test_data = result.test_data
-            platform = test_data.get("platform") if test_data else None
-            is_ios_only = platform == "ios" or (isinstance(platform, list) and platform == ["ios"])
-
-            result.warnings.append(ValidationMessage(
-                path=path,
-                message="selectOption with 'index' is not supported on iOS. Use 'label' or 'value' instead for iOS compatibility.",
-                level="warning"
-            ))
 
     def _validate_assertion(self, step: dict, path: str, result: ValidationResult):
         """Validate an assertion step."""

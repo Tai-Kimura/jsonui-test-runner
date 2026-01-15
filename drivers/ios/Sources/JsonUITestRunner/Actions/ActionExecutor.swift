@@ -355,9 +355,8 @@ public class XCUITestActionExecutor: ActionExecutor {
             // Normal picker (UIPickerView)
             try selectPickerValue(pickerView: pickerView, step: step, in: app)
         } else if datePickerAppeared && datePicker.isHittable {
-            // Date picker - currently not fully supported for programmatic selection
-            // Users should use value parameter with date string
-            throw ActionError.actionFailed(action: "selectOption", reason: "Date picker selection is not yet supported. Use tap action to interact with date picker directly.")
+            // Date picker - select using ISO format value
+            try selectDatePickerValue(datePicker: datePicker, step: step, in: app)
         }
 
         // Step 4: Tap Done button to confirm selection
@@ -389,15 +388,147 @@ public class XCUITestActionExecutor: ActionExecutor {
             return
         }
 
-        // Select by index - need to scroll to the position
+        // Select by index - parse items from accessibility value
         if let index = step.index {
-            // For index-based selection, we need to know the items
-            // XCUITest doesn't provide direct index-based picker selection
-            // We'd need the picker data source, which we don't have access to
-            throw ActionError.actionFailed(action: "selectOption", reason: "Index-based selection is not supported for iOS pickers. Use 'label' or 'value' instead.")
+            // SwiftJsonUI encodes items in accessibilityValue with "|||" separator
+            guard let itemsString = pickerView.value as? String, !itemsString.isEmpty else {
+                throw ActionError.actionFailed(action: "selectOption", reason: "Cannot get items from picker. Ensure SelectBox has items with accessibilityValue set.")
+            }
+
+            let items = itemsString.components(separatedBy: "|||")
+            guard index >= 0 && index < items.count else {
+                throw ActionError.actionFailed(action: "selectOption", reason: "Index \(index) out of range. Picker has \(items.count) items.")
+            }
+
+            let targetValue = items[index]
+            let wheel = pickerWheels.firstMatch
+            wheel.adjust(toPickerWheelValue: targetValue)
+            return
         }
 
-        throw ActionError.missingParameter(action: "selectOption", parameter: "label or value")
+        throw ActionError.missingParameter(action: "selectOption", parameter: "label, value, or index")
+    }
+
+    private func selectDatePickerValue(datePicker: XCUIElement, step: TestStep, in app: XCUIApplication) throws {
+        // Parse ISO format value: "2024-01-15", "14:30", or "2024-01-15T14:30"
+        guard let value = step.value else {
+            throw ActionError.missingParameter(action: "selectOption", parameter: "value (ISO format date/time)")
+        }
+
+        let pickerWheels = datePicker.pickerWheels
+
+        if pickerWheels.count == 0 {
+            throw ActionError.actionFailed(action: "selectOption", reason: "No picker wheels found in date picker")
+        }
+
+        // Detect format and parse accordingly
+        if value.contains("T") {
+            // DateTime format: "2024-01-15T14:30"
+            let parts = value.split(separator: "T")
+            if parts.count == 2 {
+                try selectDateComponents(from: String(parts[0]), pickerWheels: pickerWheels)
+                try selectTimeComponents(from: String(parts[1]), pickerWheels: pickerWheels)
+            }
+        } else if value.contains(":") {
+            // Time format: "14:30"
+            try selectTimeComponents(from: value, pickerWheels: pickerWheels)
+        } else if value.contains("-") {
+            // Date format: "2024-01-15"
+            try selectDateComponents(from: value, pickerWheels: pickerWheels)
+        } else {
+            throw ActionError.actionFailed(action: "selectOption", reason: "Invalid date/time format: \(value). Use ISO format (e.g., '2024-01-15', '14:30', or '2024-01-15T14:30')")
+        }
+    }
+
+    private func selectDateComponents(from dateString: String, pickerWheels: XCUIElementQuery) throws {
+        // Parse "2024-01-15" format
+        let components = dateString.split(separator: "-")
+        guard components.count == 3,
+              let year = Int(components[0]),
+              let month = Int(components[1]),
+              let day = Int(components[2]) else {
+            throw ActionError.actionFailed(action: "selectOption", reason: "Invalid date format: \(dateString). Expected YYYY-MM-DD")
+        }
+
+        // iOS date picker wheel order varies by locale, but typically:
+        // Japanese locale: Year, Month, Day (e.g., "2024年", "1月", "15日")
+        // US locale: Month, Day, Year (e.g., "January", "15", "2024")
+        // Try to find and adjust each component
+
+        let allWheels = pickerWheels.allElementsBoundByIndex
+
+        for wheel in allWheels {
+            guard let currentValue = wheel.value as? String else { continue }
+
+            // Try to match year wheel
+            if currentValue.contains("年") || (Int(currentValue) ?? 0) > 1900 {
+                // Japanese format: "2024年" or just "2024"
+                let yearValue = currentValue.contains("年") ? "\(year)年" : "\(year)"
+                wheel.adjust(toPickerWheelValue: yearValue)
+            }
+            // Try to match month wheel
+            else if currentValue.contains("月") || isMonthName(currentValue) {
+                // Japanese format: "1月" or English: "January"
+                if currentValue.contains("月") {
+                    wheel.adjust(toPickerWheelValue: "\(month)月")
+                } else {
+                    // English month names
+                    let monthNames = ["January", "February", "March", "April", "May", "June",
+                                     "July", "August", "September", "October", "November", "December"]
+                    if month >= 1 && month <= 12 {
+                        wheel.adjust(toPickerWheelValue: monthNames[month - 1])
+                    }
+                }
+            }
+            // Try to match day wheel
+            else if currentValue.contains("日") || (Int(currentValue) ?? 0) >= 1 && (Int(currentValue) ?? 0) <= 31 {
+                // Japanese format: "15日" or just "15"
+                let dayValue = currentValue.contains("日") ? "\(day)日" : "\(day)"
+                wheel.adjust(toPickerWheelValue: dayValue)
+            }
+        }
+    }
+
+    private func selectTimeComponents(from timeString: String, pickerWheels: XCUIElementQuery) throws {
+        // Parse "14:30" format
+        let components = timeString.split(separator: ":")
+        guard components.count >= 2,
+              let hour = Int(components[0]),
+              let minute = Int(components[1]) else {
+            throw ActionError.actionFailed(action: "selectOption", reason: "Invalid time format: \(timeString). Expected HH:mm")
+        }
+
+        let allWheels = pickerWheels.allElementsBoundByIndex
+
+        for wheel in allWheels {
+            guard let currentValue = wheel.value as? String else { continue }
+
+            // Try to match hour wheel
+            if currentValue.contains("時") || currentValue.contains("時") {
+                wheel.adjust(toPickerWheelValue: "\(hour)時")
+            }
+            // Try to match minute wheel
+            else if currentValue.contains("分") {
+                wheel.adjust(toPickerWheelValue: "\(minute)分")
+            }
+            // Plain number format (e.g., "14", "30")
+            else if let value = Int(currentValue.replacingOccurrences(of: " ", with: "")) {
+                if value >= 0 && value <= 23 && !currentValue.contains("分") {
+                    // Likely hour wheel
+                    wheel.adjust(toPickerWheelValue: "\(hour)")
+                } else if value >= 0 && value <= 59 {
+                    // Likely minute wheel
+                    wheel.adjust(toPickerWheelValue: "\(minute)")
+                }
+            }
+        }
+    }
+
+    private func isMonthName(_ value: String) -> Bool {
+        let monthNames = ["January", "February", "March", "April", "May", "June",
+                         "July", "August", "September", "October", "November", "December",
+                         "Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        return monthNames.contains { value.contains($0) }
     }
 
     // MARK: - Helper Methods
