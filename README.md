@@ -46,18 +46,17 @@ JSONで定義されたテストケースを、iOS・Android・Webで統一的に
 
 ### 2. テストの実行
 
+テストの実行方法はプラットフォームごとに異なります。各ドライバーのREADMEを参照してください：
+
+- **iOS**: [drivers/ios/README.md](drivers/ios/README.md) - XCUITestフレームワークで実行
+- **Android**: [drivers/android/README.md](drivers/android/README.md) - UIAutomatorで実行
+- **Web**: [drivers/web/README.md](drivers/web/README.md) - Playwrightで実行
+
+### 3. テストファイルのバリデーション
+
 ```bash
-# iOS
-jsonui-test run --platform ios --target tests/screens/
-
-# Android
-jsonui-test run --platform android --target tests/screens/
-
-# Web
-jsonui-test run --platform web --target tests/screens/
-
-# 全プラットフォーム
-jsonui-test run --platform all --target tests/screens/
+# jsonui-test CLIでテストファイルを検証
+jsonui-test validate tests/screens/Login.test.json
 ```
 
 ## プロジェクト構成
