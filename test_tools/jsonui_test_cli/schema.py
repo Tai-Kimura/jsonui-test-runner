@@ -137,7 +137,12 @@ VALID_TOP_LEVEL_KEYS = [
 ]
 
 # Valid keys in test case
-VALID_CASE_KEYS = ["name", "description", "skip", "platform", "initialState", "steps"]
+# - name: Test case name (required)
+# - description: Inline description text
+# - descriptionFile: Path to external file containing detailed description (relative to test file)
+#   When specified, the generator reads this file and uses its content as the description.
+#   Supports .md (Markdown) and .txt files.
+VALID_CASE_KEYS = ["name", "description", "descriptionFile", "skip", "platform", "initialState", "steps"]
 
 # Valid keys in test step
 VALID_STEP_KEYS = [

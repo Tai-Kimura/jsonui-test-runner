@@ -20,6 +20,39 @@ class DocumentGenerator:
 
     def __init__(self):
         self.validator = TestValidator()
+        self._test_file_path: Path | None = None
+
+    def _resolve_description(self, case: dict) -> str:
+        """
+        Resolve the description for a test case.
+
+        If descriptionFile is specified, reads and returns the file content.
+        Otherwise, returns the inline description.
+
+        Args:
+            case: Test case dictionary
+
+        Returns:
+            Description text (may be multi-line for external files)
+        """
+        # Check for external description file
+        if "descriptionFile" in case and self._test_file_path:
+            desc_file_path = case["descriptionFile"]
+            # Resolve relative to test file location
+            if not Path(desc_file_path).is_absolute():
+                desc_file_path = self._test_file_path.parent / desc_file_path
+
+            desc_path = Path(desc_file_path)
+            if desc_path.exists():
+                try:
+                    return desc_path.read_text(encoding='utf-8').strip()
+                except Exception as e:
+                    return f"[Error reading {case['descriptionFile']}: {e}]"
+            else:
+                return f"[Description file not found: {case['descriptionFile']}]"
+
+        # Fall back to inline description
+        return case.get("description", "")
 
     def generate(self, file_path: Path, output_path: Path | None = None, format: str = "markdown") -> str | None:
         """
@@ -33,6 +66,9 @@ class DocumentGenerator:
         Returns:
             Generated content as string if output_path is None
         """
+        # Store file path for resolving relative description files
+        self._test_file_path = Path(file_path).resolve()
+
         # First validate
         result = self.validator.validate_file(file_path)
 
@@ -90,12 +126,13 @@ class DocumentGenerator:
 
             for i, case in enumerate(cases, 1):
                 case_name = case.get("name", f"Case {i}")
-                case_desc = case.get("description", "")
+                case_desc = self._resolve_description(case)
 
                 lines.append(f"### {i}. {case_name}")
                 lines.append("")
                 if case_desc:
-                    lines.append(f"{case_desc}")
+                    # Handle multi-line descriptions from external files
+                    lines.append(case_desc)
                     lines.append("")
 
                 # Steps table
@@ -178,11 +215,17 @@ class DocumentGenerator:
 
             for i, case in enumerate(cases, 1):
                 case_name = case.get("name", f"Case {i}")
-                case_desc = case.get("description", "")
+                case_desc = self._resolve_description(case)
 
                 html_parts.append(f"  <h3>{i}. {case_name}</h3>")
                 if case_desc:
-                    html_parts.append(f"  <p>{case_desc}</p>")
+                    # Convert newlines to <br> for HTML display, or wrap in <pre> for multi-line
+                    if "\n" in case_desc:
+                        # Multi-line: wrap in div with preserved formatting
+                        escaped_desc = case_desc.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                        html_parts.append(f"  <div class='description-content' style='white-space: pre-wrap;'>{escaped_desc}</div>")
+                    else:
+                        html_parts.append(f"  <p>{case_desc}</p>")
 
                 steps = case.get("steps", [])
                 if steps:

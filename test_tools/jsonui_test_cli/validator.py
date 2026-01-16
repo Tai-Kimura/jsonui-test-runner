@@ -53,8 +53,12 @@ class ValidationResult:
 class TestValidator:
     """Validates JsonUI test files."""
 
+    def __init__(self):
+        self._test_file_path: Path | None = None
+
     def validate_file(self, file_path: Path) -> ValidationResult:
         """Validate a single test file."""
+        self._test_file_path = Path(file_path).resolve()
         result = ValidationResult(file_path=file_path)
 
         try:
@@ -167,6 +171,21 @@ class TestValidator:
                 result.warnings.append(ValidationMessage(
                     path=path,
                     message=f"Unknown case key: {key}",
+                    level="warning"
+                ))
+
+        # Validate descriptionFile if present
+        if "descriptionFile" in case and self._test_file_path:
+            desc_file_path = case["descriptionFile"]
+            # Resolve relative to test file location
+            if not Path(desc_file_path).is_absolute():
+                desc_file_path = self._test_file_path.parent / desc_file_path
+
+            desc_path = Path(desc_file_path)
+            if not desc_path.exists():
+                result.warnings.append(ValidationMessage(
+                    path=path,
+                    message=f"Description file not found: {case['descriptionFile']}",
                     level="warning"
                 ))
 
