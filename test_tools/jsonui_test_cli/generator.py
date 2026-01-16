@@ -386,8 +386,7 @@ class DocumentGenerator:
         if cases:
             parts.append("    <div class='sidebar-title'>Test Cases</div>")
             parts.append("    <ul>")
-            for i, case in enumerate(cases, 1):
-                case_display = case.get("description") or case.get("name", f"Case {i}")
+            for i, case_display in enumerate(cases, 1):
                 case_id = f"case-{i}"
                 parts.append(f"      <li><a href='#{case_id}'><span class='case-number'>{i}</span><span class='case-name'>{self._escape_html(case_display)}</span></a></li>")
             parts.append("    </ul>")
