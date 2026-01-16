@@ -246,8 +246,9 @@ class DocumentGenerator:
         """Generate HTML documentation."""
         data = result.test_data
         metadata = data.get("metadata", {})
-        title = metadata.get("name", result.file_path.stem)
+        name = metadata.get("name", result.file_path.stem)
         description = metadata.get("description", "")
+        title = description or name
         cases = data.get("cases", [])
 
         html_parts = self._get_html_header(title, cases)
@@ -255,9 +256,7 @@ class DocumentGenerator:
         # Main content wrapper
         html_parts.append("  <main class='main-content'>")
         html_parts.append(f"    <h1>{self._escape_html(title)}</h1>")
-
-        if description:
-            html_parts.append(f"    <p class='description'>{self._escape_html(description)}</p>")
+        html_parts.append(f"    <p class='test-name-label'><strong>Test Name:</strong> <code>{self._escape_html(name)}</code></p>")
 
         # Test info
         html_parts.append("    <div class='info'>")
@@ -348,6 +347,8 @@ class DocumentGenerator:
             "    .summary { color: #333; margin-bottom: 10px; }",
             "    .case-name-label { color: #888; font-size: 0.9em; margin: -10px 0 15px 0; }",
             "    .case-name-label code { background: #f5f5f5; color: #666; }",
+            "    .test-name-label { color: #888; font-size: 0.9em; margin: -5px 0 15px 0; }",
+            "    .test-name-label code { background: #f5f5f5; color: #666; }",
             "    .desc-section { margin: 10px 0; padding-left: 10px; border-left: 3px solid #e0e0e0; }",
             "    .desc-section ul, .desc-section ol { margin: 5px 0; padding-left: 25px; }",
             "    .notes { color: #666; font-style: italic; background: #fffbf0; padding: 10px; border-radius: 5px; }",
