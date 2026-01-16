@@ -179,6 +179,11 @@
         "required": ["name", "afterStep"],
         "additionalProperties": false
       }
+    },
+
+    "descriptionFile": {
+      "type": "string",
+      "description": "Path to external description JSON file (relative to test file)"
     }
   },
 

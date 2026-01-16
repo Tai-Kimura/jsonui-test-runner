@@ -151,6 +151,13 @@ VALID_STEP_KEYS = [
     "path", "amount", "screen", "text", "button", "label", "index"
 ]
 
+# Valid keys in description file
+VALID_DESCRIPTION_KEYS = [
+    "$schema", "case_name", "summary", "preconditions",
+    "test_procedure", "expected_results", "notes",
+    "created_at", "updated_at"
+]
+
 # Parameter descriptions
 PARAMETER_DESCRIPTIONS = {
     "id": "Element identifier (accessibilityIdentifier on iOS, resource-id on Android, data-testid on Web)",

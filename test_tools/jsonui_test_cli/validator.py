@@ -14,6 +14,7 @@ from .schema import (
     VALID_TOP_LEVEL_KEYS,
     VALID_CASE_KEYS,
     VALID_STEP_KEYS,
+    VALID_DESCRIPTION_KEYS,
 )
 
 
@@ -57,7 +58,7 @@ class TestValidator:
         self._test_file_path: Path | None = None
 
     def validate_file(self, file_path: Path) -> ValidationResult:
-        """Validate a single test file."""
+        """Validate a single test or description file."""
         self._test_file_path = Path(file_path).resolve()
         result = ValidationResult(file_path=file_path)
 
@@ -78,7 +79,22 @@ class TestValidator:
             ))
             return result
 
-        self._validate_test(data, str(file_path), result)
+        # Determine file type by extension or content
+        file_name = file_path.name
+        if file_name.endswith('.test.json'):
+            self._validate_test(data, str(file_path), result)
+        elif 'case_name' in data or (file_path.parent.name == 'descriptions'):
+            # Description file (has case_name or is in descriptions folder)
+            self._validate_description(data, str(file_path), result)
+        elif 'type' in data and data['type'] in ['screen', 'flow']:
+            # Test file without .test.json extension
+            self._validate_test(data, str(file_path), result)
+        else:
+            result.errors.append(ValidationMessage(
+                path=str(file_path),
+                message="Unknown file type: expected test file (.test.json) or description file"
+            ))
+
         return result
 
     def validate_data(self, data: dict, name: str = "test") -> ValidationResult:
@@ -315,3 +331,86 @@ class TestValidator:
                     path=path,
                     message="Text assertion must have 'equals' or 'contains'"
                 ))
+
+    def _validate_description(self, data: dict, path: str, result: ValidationResult):
+        """Validate a description file."""
+        # Check required field
+        if "case_name" not in data:
+            result.errors.append(ValidationMessage(
+                path=path,
+                message="Description file missing required 'case_name' field"
+            ))
+
+        # Check for unknown keys
+        for key in data.keys():
+            if key not in VALID_DESCRIPTION_KEYS:
+                result.warnings.append(ValidationMessage(
+                    path=path,
+                    message=f"Unknown description key: {key}",
+                    level="warning"
+                ))
+
+        # Validate case_name is non-empty string
+        if "case_name" in data:
+            case_name = data["case_name"]
+            if not isinstance(case_name, str) or not case_name.strip():
+                result.errors.append(ValidationMessage(
+                    path=path,
+                    message="'case_name' must be a non-empty string"
+                ))
+
+        # Validate summary is string if present
+        if "summary" in data and not isinstance(data["summary"], str):
+            result.errors.append(ValidationMessage(
+                path=path,
+                message="'summary' must be a string"
+            ))
+
+        # Validate preconditions is array of strings if present
+        if "preconditions" in data:
+            preconditions = data["preconditions"]
+            if not isinstance(preconditions, list):
+                result.errors.append(ValidationMessage(
+                    path=path,
+                    message="'preconditions' must be an array"
+                ))
+            elif not all(isinstance(item, str) for item in preconditions):
+                result.errors.append(ValidationMessage(
+                    path=path,
+                    message="'preconditions' must be an array of strings"
+                ))
+
+        # Validate test_procedure is array of strings if present
+        if "test_procedure" in data:
+            test_procedure = data["test_procedure"]
+            if not isinstance(test_procedure, list):
+                result.errors.append(ValidationMessage(
+                    path=path,
+                    message="'test_procedure' must be an array"
+                ))
+            elif not all(isinstance(item, str) for item in test_procedure):
+                result.errors.append(ValidationMessage(
+                    path=path,
+                    message="'test_procedure' must be an array of strings"
+                ))
+
+        # Validate expected_results is array of strings if present
+        if "expected_results" in data:
+            expected_results = data["expected_results"]
+            if not isinstance(expected_results, list):
+                result.errors.append(ValidationMessage(
+                    path=path,
+                    message="'expected_results' must be an array"
+                ))
+            elif not all(isinstance(item, str) for item in expected_results):
+                result.errors.append(ValidationMessage(
+                    path=path,
+                    message="'expected_results' must be an array of strings"
+                ))
+
+        # Validate notes is string if present
+        if "notes" in data and not isinstance(data["notes"], str):
+            result.errors.append(ValidationMessage(
+                path=path,
+                message="'notes' must be a string"
+            ))

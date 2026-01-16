@@ -22,18 +22,18 @@ class DocumentGenerator:
         self.validator = TestValidator()
         self._test_file_path: Path | None = None
 
-    def _resolve_description(self, case: dict) -> str:
+    def _resolve_description(self, case: dict) -> dict | str:
         """
         Resolve the description for a test case.
 
-        If descriptionFile is specified, reads and returns the file content.
+        If descriptionFile is specified, reads and parses the JSON file.
         Otherwise, returns the inline description.
 
         Args:
             case: Test case dictionary
 
         Returns:
-            Description text (may be multi-line for external files)
+            Description dict (from JSON file) or string (inline description)
         """
         # Check for external description file
         if "descriptionFile" in case and self._test_file_path:
@@ -45,7 +45,8 @@ class DocumentGenerator:
             desc_path = Path(desc_file_path)
             if desc_path.exists():
                 try:
-                    return desc_path.read_text(encoding='utf-8').strip()
+                    with open(desc_path, 'r', encoding='utf-8') as f:
+                        return json.load(f)
                 except Exception as e:
                     return f"[Error reading {case['descriptionFile']}: {e}]"
             else:
@@ -92,6 +93,38 @@ class DocumentGenerator:
         else:
             return content
 
+    def _format_description_markdown(self, desc: dict | str) -> list[str]:
+        """Format description (dict or string) for Markdown output."""
+        lines = []
+        if isinstance(desc, dict):
+            # Description from JSON file
+            if desc.get("summary"):
+                lines.append(desc["summary"])
+                lines.append("")
+            if desc.get("preconditions"):
+                lines.append("**Preconditions:**")
+                for item in desc["preconditions"]:
+                    lines.append(f"- {item}")
+                lines.append("")
+            if desc.get("test_procedure"):
+                lines.append("**Test Procedure:**")
+                for i, item in enumerate(desc["test_procedure"], 1):
+                    lines.append(f"{i}. {item}")
+                lines.append("")
+            if desc.get("expected_results"):
+                lines.append("**Expected Results:**")
+                for item in desc["expected_results"]:
+                    lines.append(f"- {item}")
+                lines.append("")
+            if desc.get("notes"):
+                lines.append(f"**Notes:** {desc['notes']}")
+                lines.append("")
+        elif desc:
+            # Inline description string
+            lines.append(desc)
+            lines.append("")
+        return lines
+
     def _generate_markdown(self, result: ValidationResult) -> str:
         """Generate Markdown documentation."""
         data = result.test_data
@@ -130,10 +163,7 @@ class DocumentGenerator:
 
                 lines.append(f"### {i}. {case_name}")
                 lines.append("")
-                if case_desc:
-                    # Handle multi-line descriptions from external files
-                    lines.append(case_desc)
-                    lines.append("")
+                lines.extend(self._format_description_markdown(case_desc))
 
                 # Steps table
                 steps = case.get("steps", [])
@@ -164,6 +194,54 @@ class DocumentGenerator:
 
         return "\n".join(lines)
 
+    def _format_description_html(self, desc: dict | str) -> list[str]:
+        """Format description (dict or string) for HTML output."""
+        parts = []
+        if isinstance(desc, dict):
+            # Description from JSON file
+            if desc.get("summary"):
+                escaped = self._escape_html(desc["summary"])
+                parts.append(f"  <p class='summary'>{escaped}</p>")
+            if desc.get("preconditions"):
+                parts.append("  <div class='desc-section'>")
+                parts.append("    <strong>Preconditions:</strong>")
+                parts.append("    <ul>")
+                for item in desc["preconditions"]:
+                    escaped = self._escape_html(item)
+                    parts.append(f"      <li>{escaped}</li>")
+                parts.append("    </ul>")
+                parts.append("  </div>")
+            if desc.get("test_procedure"):
+                parts.append("  <div class='desc-section'>")
+                parts.append("    <strong>Test Procedure:</strong>")
+                parts.append("    <ol>")
+                for item in desc["test_procedure"]:
+                    escaped = self._escape_html(item)
+                    parts.append(f"      <li>{escaped}</li>")
+                parts.append("    </ol>")
+                parts.append("  </div>")
+            if desc.get("expected_results"):
+                parts.append("  <div class='desc-section'>")
+                parts.append("    <strong>Expected Results:</strong>")
+                parts.append("    <ul>")
+                for item in desc["expected_results"]:
+                    escaped = self._escape_html(item)
+                    parts.append(f"      <li>{escaped}</li>")
+                parts.append("    </ul>")
+                parts.append("  </div>")
+            if desc.get("notes"):
+                escaped = self._escape_html(desc["notes"])
+                parts.append(f"  <p class='notes'><strong>Notes:</strong> {escaped}</p>")
+        elif desc:
+            # Inline description string
+            escaped = self._escape_html(desc)
+            parts.append(f"  <p>{escaped}</p>")
+        return parts
+
+    def _escape_html(self, text: str) -> str:
+        """Escape HTML special characters."""
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
     def _generate_html(self, result: ValidationResult) -> str:
         """Generate HTML documentation."""
         data = result.test_data
@@ -171,40 +249,17 @@ class DocumentGenerator:
         title = metadata.get("name", result.file_path.stem)
         description = metadata.get("description", "")
 
-        html_parts = [
-            "<!DOCTYPE html>",
-            "<html lang='en'>",
-            "<head>",
-            f"  <title>{title} - Test Documentation</title>",
-            "  <meta charset='utf-8'>",
-            "  <style>",
-            "    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; }",
-            "    h1 { color: #333; border-bottom: 2px solid #007AFF; padding-bottom: 10px; }",
-            "    h2 { color: #555; margin-top: 30px; }",
-            "    h3 { color: #666; }",
-            "    table { border-collapse: collapse; width: 100%; margin: 15px 0; }",
-            "    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }",
-            "    th { background: #f5f5f5; }",
-            "    code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }",
-            "    .info { background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0; }",
-            "    .description { color: #666; font-style: italic; margin-bottom: 20px; }",
-            "    .action { color: #007AFF; }",
-            "    .assert { color: #34C759; }",
-            "  </style>",
-            "</head>",
-            "<body>",
-            f"  <h1>{title}</h1>",
-        ]
+        html_parts = self._get_html_header(title)
 
         if description:
-            html_parts.append(f"  <p class='description'>{description}</p>")
+            html_parts.append(f"  <p class='description'>{self._escape_html(description)}</p>")
 
         # Test info
         html_parts.append("  <div class='info'>")
         html_parts.append(f"    <strong>Type:</strong> {data.get('type', 'unknown')}<br>")
         html_parts.append(f"    <strong>Platform:</strong> {data.get('platform', 'all')}<br>")
         if "source" in data:
-            html_parts.append(f"    <strong>Layout:</strong> <code>{data['source'].get('layout', 'N/A')}</code><br>")
+            html_parts.append(f"    <strong>Layout:</strong> <code>{self._escape_html(data['source'].get('layout', 'N/A'))}</code><br>")
         html_parts.append(f"    <strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         html_parts.append("  </div>")
 
@@ -217,15 +272,8 @@ class DocumentGenerator:
                 case_name = case.get("name", f"Case {i}")
                 case_desc = self._resolve_description(case)
 
-                html_parts.append(f"  <h3>{i}. {case_name}</h3>")
-                if case_desc:
-                    # Convert newlines to <br> for HTML display, or wrap in <pre> for multi-line
-                    if "\n" in case_desc:
-                        # Multi-line: wrap in div with preserved formatting
-                        escaped_desc = case_desc.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                        html_parts.append(f"  <div class='description-content' style='white-space: pre-wrap;'>{escaped_desc}</div>")
-                    else:
-                        html_parts.append(f"  <p>{case_desc}</p>")
+                html_parts.append(f"  <h3>{i}. {self._escape_html(case_name)}</h3>")
+                html_parts.extend(self._format_description_html(case_desc))
 
                 steps = case.get("steps", [])
                 if steps:
@@ -246,6 +294,40 @@ class DocumentGenerator:
         html_parts.append("</html>")
 
         return "\n".join(html_parts)
+
+    def _get_html_header(self, title: str) -> list[str]:
+        """Get HTML header with styles."""
+        return [
+            "<!DOCTYPE html>",
+            "<html lang='en'>",
+            "<head>",
+            f"  <title>{self._escape_html(title)} - Test Documentation</title>",
+            "  <meta charset='utf-8'>",
+            "  <meta name='viewport' content='width=device-width, initial-scale=1'>",
+            "  <style>",
+            "    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; line-height: 1.6; }",
+            "    h1 { color: #333; border-bottom: 2px solid #007AFF; padding-bottom: 10px; }",
+            "    h2 { color: #555; margin-top: 30px; }",
+            "    h3 { color: #666; margin-top: 25px; }",
+            "    table { border-collapse: collapse; width: 100%; margin: 15px 0; }",
+            "    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }",
+            "    th { background: #f5f5f5; }",
+            "    code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }",
+            "    .info { background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0; }",
+            "    .description { color: #666; font-style: italic; margin-bottom: 20px; }",
+            "    .action { color: #007AFF; font-weight: 500; }",
+            "    .assert { color: #34C759; font-weight: 500; }",
+            "    .summary { color: #333; margin-bottom: 10px; }",
+            "    .desc-section { margin: 10px 0; padding-left: 10px; border-left: 3px solid #e0e0e0; }",
+            "    .desc-section ul, .desc-section ol { margin: 5px 0; padding-left: 25px; }",
+            "    .notes { color: #666; font-style: italic; background: #fffbf0; padding: 10px; border-radius: 5px; }",
+            "    a { color: #007AFF; text-decoration: none; }",
+            "    a:hover { text-decoration: underline; }",
+            "  </style>",
+            "</head>",
+            "<body>",
+            f"  <h1>{self._escape_html(title)}</h1>",
+        ]
 
     def _format_step_details(self, step: dict) -> str:
         """Format step details for display."""
@@ -402,3 +484,234 @@ def _get_assertion_example(assertion: str, spec: dict) -> dict:
         example["equals"] = "Expected text"
 
     return example
+
+
+def generate_html_directory(
+    input_dir: Path,
+    output_dir: Path,
+    title: str = "JsonUI Test Documentation"
+) -> list[dict]:
+    """
+    Generate HTML documentation for all test files in a directory.
+
+    Creates individual HTML files for each test and an index.html with links.
+
+    Args:
+        input_dir: Directory containing .test.json files
+        output_dir: Directory to output HTML files
+        title: Title for the index page
+
+    Returns:
+        List of generated file info dicts with 'name', 'path', 'type', 'cases'
+    """
+    generator = DocumentGenerator()
+    input_path = Path(input_dir)
+    output_path = Path(output_dir)
+
+    # Create output directory
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    # Collect all test files
+    test_files = list(input_path.rglob("*.test.json"))
+
+    if not test_files:
+        raise ValueError(f"No .test.json files found in {input_dir}")
+
+    generated_files = []
+
+    # Generate HTML for each test file
+    for test_file in sorted(test_files):
+        try:
+            # Validate first
+            result = generator.validator.validate_file(test_file)
+            if not result.is_valid:
+                print(f"  Skipping {test_file} (validation errors)")
+                continue
+
+            # Determine relative path structure
+            rel_path = test_file.relative_to(input_path)
+            html_filename = rel_path.with_suffix('.html').name
+
+            # Create subdirectory structure in output
+            test_type = result.test_data.get('type', 'unknown')
+            if test_type == 'screen':
+                subdir = output_path / 'screens'
+            elif test_type == 'flow':
+                subdir = output_path / 'flows'
+            else:
+                subdir = output_path / 'other'
+
+            subdir.mkdir(parents=True, exist_ok=True)
+            html_path = subdir / html_filename
+
+            # Generate HTML
+            generator._test_file_path = test_file.resolve()
+            content = generator._generate_html(result)
+
+            with open(html_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+
+            # Collect info for index
+            metadata = result.test_data.get('metadata', {})
+            cases = result.test_data.get('cases', [])
+            steps = result.test_data.get('steps', [])
+
+            generated_files.append({
+                'name': metadata.get('name', test_file.stem),
+                'description': metadata.get('description', ''),
+                'path': html_path.relative_to(output_path),
+                'type': test_type,
+                'case_count': len(cases) if cases else 0,
+                'step_count': len(steps) if steps else sum(len(c.get('steps', [])) for c in cases),
+                'platform': result.test_data.get('platform', 'all'),
+            })
+
+            print(f"  Generated: {html_path}")
+
+        except Exception as e:
+            print(f"  Error processing {test_file}: {e}")
+
+    # Generate index.html
+    _generate_index_html(output_path, generated_files, title)
+
+    return generated_files
+
+
+def _generate_index_html(output_dir: Path, files: list[dict], title: str):
+    """Generate index.html with links to all test documentation."""
+    html_parts = [
+        "<!DOCTYPE html>",
+        "<html lang='en'>",
+        "<head>",
+        f"  <title>{title}</title>",
+        "  <meta charset='utf-8'>",
+        "  <meta name='viewport' content='width=device-width, initial-scale=1'>",
+        "  <style>",
+        "    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; line-height: 1.6; background: #fafafa; }",
+        "    h1 { color: #333; border-bottom: 2px solid #007AFF; padding-bottom: 10px; }",
+        "    h2 { color: #555; margin-top: 30px; }",
+        "    .summary { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }",
+        "    .summary-item { display: inline-block; margin-right: 30px; }",
+        "    .summary-value { font-size: 2em; font-weight: bold; color: #007AFF; }",
+        "    .summary-label { color: #666; }",
+        "    .test-list { list-style: none; padding: 0; }",
+        "    .test-item { background: #fff; margin: 10px 0; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }",
+        "    .test-item:hover { box-shadow: 0 4px 8px rgba(0,0,0,0.15); }",
+        "    .test-name { font-size: 1.1em; font-weight: 600; color: #333; text-decoration: none; }",
+        "    .test-name:hover { color: #007AFF; }",
+        "    .test-meta { margin-top: 5px; color: #666; font-size: 0.9em; }",
+        "    .test-description { color: #555; margin-top: 5px; }",
+        "    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-right: 5px; }",
+        "    .badge-screen { background: #e3f2fd; color: #1976d2; }",
+        "    .badge-flow { background: #f3e5f5; color: #7b1fa2; }",
+        "    .badge-platform { background: #e8f5e9; color: #388e3c; }",
+        "    .generated { color: #999; font-size: 0.85em; margin-top: 30px; text-align: center; }",
+        "  </style>",
+        "</head>",
+        "<body>",
+        f"  <h1>{title}</h1>",
+    ]
+
+    # Summary section
+    screen_count = sum(1 for f in files if f['type'] == 'screen')
+    flow_count = sum(1 for f in files if f['type'] == 'flow')
+    total_cases = sum(f['case_count'] for f in files)
+    total_steps = sum(f['step_count'] for f in files)
+
+    html_parts.extend([
+        "  <div class='summary'>",
+        "    <div class='summary-item'>",
+        f"      <div class='summary-value'>{len(files)}</div>",
+        "      <div class='summary-label'>Test Files</div>",
+        "    </div>",
+        "    <div class='summary-item'>",
+        f"      <div class='summary-value'>{screen_count}</div>",
+        "      <div class='summary-label'>Screen Tests</div>",
+        "    </div>",
+        "    <div class='summary-item'>",
+        f"      <div class='summary-value'>{flow_count}</div>",
+        "      <div class='summary-label'>Flow Tests</div>",
+        "    </div>",
+        "    <div class='summary-item'>",
+        f"      <div class='summary-value'>{total_cases}</div>",
+        "      <div class='summary-label'>Test Cases</div>",
+        "    </div>",
+        "    <div class='summary-item'>",
+        f"      <div class='summary-value'>{total_steps}</div>",
+        "      <div class='summary-label'>Total Steps</div>",
+        "    </div>",
+        "  </div>",
+    ])
+
+    # Screen tests section
+    screen_files = [f for f in files if f['type'] == 'screen']
+    if screen_files:
+        html_parts.append("  <h2>Screen Tests</h2>")
+        html_parts.append("  <ul class='test-list'>")
+        for f in screen_files:
+            html_parts.extend([
+                "    <li class='test-item'>",
+                f"      <a href='{f['path']}' class='test-name'>{f['name']}</a>",
+                "      <div class='test-meta'>",
+                f"        <span class='badge badge-screen'>screen</span>",
+                f"        <span class='badge badge-platform'>{f['platform']}</span>",
+                f"        {f['case_count']} cases, {f['step_count']} steps",
+                "      </div>",
+            ])
+            if f['description']:
+                html_parts.append(f"      <div class='test-description'>{f['description']}</div>")
+            html_parts.append("    </li>")
+        html_parts.append("  </ul>")
+
+    # Flow tests section
+    flow_files = [f for f in files if f['type'] == 'flow']
+    if flow_files:
+        html_parts.append("  <h2>Flow Tests</h2>")
+        html_parts.append("  <ul class='test-list'>")
+        for f in flow_files:
+            html_parts.extend([
+                "    <li class='test-item'>",
+                f"      <a href='{f['path']}' class='test-name'>{f['name']}</a>",
+                "      <div class='test-meta'>",
+                f"        <span class='badge badge-flow'>flow</span>",
+                f"        <span class='badge badge-platform'>{f['platform']}</span>",
+                f"        {f['step_count']} steps",
+                "      </div>",
+            ])
+            if f['description']:
+                html_parts.append(f"      <div class='test-description'>{f['description']}</div>")
+            html_parts.append("    </li>")
+        html_parts.append("  </ul>")
+
+    # Other tests section
+    other_files = [f for f in files if f['type'] not in ['screen', 'flow']]
+    if other_files:
+        html_parts.append("  <h2>Other Tests</h2>")
+        html_parts.append("  <ul class='test-list'>")
+        for f in other_files:
+            html_parts.extend([
+                "    <li class='test-item'>",
+                f"      <a href='{f['path']}' class='test-name'>{f['name']}</a>",
+                "      <div class='test-meta'>",
+                f"        <span class='badge'>{f['type']}</span>",
+                f"        <span class='badge badge-platform'>{f['platform']}</span>",
+                "      </div>",
+            ])
+            if f['description']:
+                html_parts.append(f"      <div class='test-description'>{f['description']}</div>")
+            html_parts.append("    </li>")
+        html_parts.append("  </ul>")
+
+    # Footer
+    html_parts.extend([
+        f"  <p class='generated'>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>",
+        "</body>",
+        "</html>",
+    ])
+
+    # Write index.html
+    index_path = output_dir / "index.html"
+    with open(index_path, 'w', encoding='utf-8') as f:
+        f.write("\n".join(html_parts))
+
+    print(f"  Generated: {index_path}")

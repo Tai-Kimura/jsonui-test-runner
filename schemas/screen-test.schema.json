@@ -124,6 +124,10 @@
             "type": "string",
             "description": "What this test case verifies"
           },
+          "descriptionFile": {
+            "type": "string",
+            "description": "Path to external description JSON file (relative to test file)"
+          },
           "skip": {
             "type": "boolean",
             "default": false,
