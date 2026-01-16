@@ -88,17 +88,22 @@ jsonui-test-runner/
 
 | アクション | 説明 | パラメータ |
 |-----------|------|-----------|
-| `tap` | 要素をタップ | `id` |
+| `tap` | 要素をタップ | `id`, `text?` |
 | `doubleTap` | ダブルタップ | `id` |
 | `longPress` | 長押し | `id`, `duration?` |
 | `input` | テキスト入力 | `id`, `value` |
 | `clear` | 入力クリア | `id` |
-| `scroll` | スクロール | `id`, `direction` |
+| `scroll` | スクロール | `id`, `direction`, `amount?` |
 | `swipe` | スワイプ | `id`, `direction` |
 | `waitFor` | 要素出現を待機 | `id`, `timeout?` |
+| `waitForAny` | いずれかの要素出現を待機 | `ids`, `timeout?` |
 | `wait` | 指定時間待機 | `ms` |
 | `back` | 戻る | - |
 | `screenshot` | スクリーンショット | `name` |
+| `alertTap` | アラートダイアログのボタンをタップ | `button`, `timeout?` |
+| `selectOption` | ドロップダウン/ピッカーから選択 | `id`, `value?`, `label?`, `index?` |
+| `tapItem` | コレクション内のアイテムをタップ | `id`, `index` |
+| `selectTab` | タブを選択 | `index`, `id?` |
 
 ### アサーション
 
