@@ -181,6 +181,15 @@ class TestValidator:
                 message="Test case missing 'name' field"
             ))
 
+        # Warn if description is missing (recommended for HTML sidebar display)
+        if "description" not in case:
+            case_name = case.get("name", "unknown")
+            result.warnings.append(ValidationMessage(
+                path=path,
+                message=f"Test case '{case_name}' missing 'description' field (recommended for HTML documentation)",
+                level="warning"
+            ))
+
         # Check for unknown keys
         for key in case.keys():
             if key not in VALID_CASE_KEYS:

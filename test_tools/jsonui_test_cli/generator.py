@@ -251,7 +251,17 @@ class DocumentGenerator:
         title = description or name
         cases = data.get("cases", [])
 
-        html_parts = self._get_html_header(title, cases)
+        # Pre-compute case display names for sidebar
+        case_displays = []
+        for case in cases:
+            case_name = case.get("name", "Case")
+            case_desc = self._resolve_description(case)
+            if isinstance(case_desc, dict) and case_desc.get("summary"):
+                case_displays.append(case_desc["summary"])
+            else:
+                case_displays.append(case.get("description") or case_name)
+
+        html_parts = self._get_html_header(title, case_displays)
 
         # Main content wrapper
         html_parts.append("  <main class='main-content'>")
@@ -273,9 +283,13 @@ class DocumentGenerator:
 
             for i, case in enumerate(cases, 1):
                 case_name = case.get("name", f"Case {i}")
-                case_display = case.get("description") or case_name
-                case_id = f"case-{i}"
                 case_desc = self._resolve_description(case)
+                # Use description from descriptionFile (summary) or inline description
+                if isinstance(case_desc, dict) and case_desc.get("summary"):
+                    case_display = case_desc["summary"]
+                else:
+                    case_display = case.get("description") or case_name
+                case_id = f"case-{i}"
 
                 html_parts.append(f"    <h3 id='{case_id}'>{i}. {self._escape_html(case_display)}</h3>")
                 html_parts.append(f"    <p class='case-name-label'><strong>Case Name:</strong> <code>{self._escape_html(case_name)}</code></p>")
