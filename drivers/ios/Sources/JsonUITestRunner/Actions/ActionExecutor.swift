@@ -37,8 +37,11 @@ public enum ActionError: Error, LocalizedError {
 public class XCUITestActionExecutor: ActionExecutor {
 
     private let defaultTimeout: TimeInterval = 5.0
+    private let platform: String
 
-    public init() {}
+    public init(platform: String = "ios") {
+        self.platform = platform
+    }
 
     public func execute(step: TestStep, in app: XCUIApplication) throws {
         guard let action = step.action else {
@@ -76,6 +79,8 @@ public class XCUITestActionExecutor: ActionExecutor {
             try executeSelectOption(step: step, in: app)
         case "tapItem":
             try executeTapItem(step: step, in: app)
+        case "selectTab":
+            try executeSelectTab(step: step, in: app)
         default:
             throw ActionError.unknownAction(action: action)
         }
@@ -552,6 +557,51 @@ public class XCUITestActionExecutor: ActionExecutor {
         }
 
         element.tap()
+    }
+
+    private func executeSelectTab(step: TestStep, in app: XCUIApplication) throws {
+        guard let index = step.index else {
+            throw ActionError.missingParameter(action: "selectTab", parameter: "index")
+        }
+
+        let timeout = TimeInterval(step.timeout ?? 5000) / 1000.0
+
+        // For UIKit mode, use standard TabBar buttons directly
+        if platform == "ios-uikit" {
+            let tabBar = app.tabBars.firstMatch
+            if tabBar.waitForExistence(timeout: timeout) {
+                let buttons = tabBar.buttons
+                if index < buttons.count {
+                    buttons.element(boundBy: index).tap()
+                    return
+                }
+            }
+            throw ActionError.actionFailed(action: "selectTab", reason: "Tab at index \(index) not found in TabBar")
+        }
+
+        // For SwiftUI mode (default), try accessibilityIdentifier pattern first
+        if let id = step.id {
+            let tabId = "\(id)_tab_\(index)"
+            let tabElement = app.descendants(matching: .any).matching(identifier: tabId).firstMatch
+
+            if tabElement.waitForExistence(timeout: timeout) {
+                tabElement.tap()
+                return
+            }
+        }
+
+        // Fallback: Use standard TabBar buttons by index (works for both SwiftUI TabView and UIKit)
+        let tabBar = app.tabBars.firstMatch
+        if tabBar.waitForExistence(timeout: timeout) {
+            let buttons = tabBar.buttons
+            if index < buttons.count {
+                buttons.element(boundBy: index).tap()
+                return
+            }
+        }
+
+        let idInfo = step.id ?? "no id"
+        throw ActionError.actionFailed(action: "selectTab", reason: "Tab at index \(index) not found (id: \(idInfo))")
     }
 
     // MARK: - Helper Methods

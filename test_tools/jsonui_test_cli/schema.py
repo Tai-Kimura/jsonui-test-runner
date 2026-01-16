@@ -1,5 +1,14 @@
 """Schema definitions for JsonUI test files."""
 
+# Supported platform values
+# - "ios": Generic iOS (auto-detects SwiftUI/UIKit, uses fallback)
+# - "ios-swiftui": iOS with SwiftUI (uses accessibilityIdentifier pattern for tabs)
+# - "ios-uikit": iOS with UIKit (uses UITabBarController directly)
+# - "android": Android (Compose with testTag)
+# - "web": Web (React with HTML id attribute)
+# - "all": All platforms
+SUPPORTED_PLATFORMS = ["ios", "ios-swiftui", "ios-uikit", "android", "web", "all"]
+
 # Cross-platform supported actions and their required/optional parameters
 SUPPORTED_ACTIONS = {
     "tap": {
@@ -76,6 +85,11 @@ SUPPORTED_ACTIONS = {
         "description": "Tap an item at a specific index in a collection (CollectionView, List, etc.)",
         "required": ["id", "index"],
         "optional": ["timeout"]
+    },
+    "selectTab": {
+        "description": "Select a tab by index in a TabView/TabBar. For ios-uikit, id is optional (uses UITabBarController directly). For ios-swiftui/android/web, id is required (uses {id}_tab_{index} pattern).",
+        "required": ["index"],
+        "optional": ["id", "timeout"]
     }
 }
 

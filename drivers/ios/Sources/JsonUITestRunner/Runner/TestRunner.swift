@@ -61,7 +61,7 @@ public class JsonUITestRunner {
     ) {
         self.app = app
         self.config = config
-        self.actionExecutor = XCUITestActionExecutor()
+        self.actionExecutor = XCUITestActionExecutor(platform: config.platform)
         self.assertionExecutor = XCUITestAssertionExecutor(stateProvider: stateProvider)
     }
 
