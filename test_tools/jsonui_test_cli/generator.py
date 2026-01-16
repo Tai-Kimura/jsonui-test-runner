@@ -274,10 +274,12 @@ class DocumentGenerator:
 
             for i, case in enumerate(cases, 1):
                 case_name = case.get("name", f"Case {i}")
+                case_display = case.get("description") or case_name
                 case_id = f"case-{i}"
                 case_desc = self._resolve_description(case)
 
-                html_parts.append(f"    <h3 id='{case_id}'>{i}. {self._escape_html(case_name)}</h3>")
+                html_parts.append(f"    <h3 id='{case_id}'>{i}. {self._escape_html(case_display)}</h3>")
+                html_parts.append(f"    <p class='case-name-label'><strong>Case Name:</strong> <code>{self._escape_html(case_name)}</code></p>")
                 html_parts.extend(self._format_description_html(case_desc))
 
                 steps = case.get("steps", [])
@@ -321,10 +323,11 @@ class DocumentGenerator:
             "    .sidebar-title { font-size: 0.85em; color: #666; font-weight: 600; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }",
             "    .sidebar ul { list-style: none; padding: 0; margin: 0; }",
             "    .sidebar li { margin: 4px 0; }",
-            "    .sidebar a { display: block; padding: 8px 12px; color: #555; text-decoration: none; border-radius: 6px; font-size: 0.9em; transition: all 0.2s; }",
+            "    .sidebar a { display: flex; align-items: flex-start; padding: 8px 12px; color: #555; text-decoration: none; border-radius: 6px; font-size: 0.9em; transition: all 0.2s; }",
             "    .sidebar a:hover { background: #e9ecef; color: #007AFF; }",
             "    .sidebar a.active { background: #007AFF; color: white; }",
-            "    .case-number { display: inline-block; width: 24px; height: 24px; line-height: 24px; text-align: center; background: #e0e0e0; border-radius: 50%; font-size: 0.75em; font-weight: 600; margin-right: 8px; }",
+            "    .case-number { flex-shrink: 0; width: 24px; height: 24px; line-height: 24px; text-align: center; background: #e0e0e0; border-radius: 50%; font-size: 0.75em; font-weight: 600; margin-right: 8px; }",
+            "    .case-name { flex: 1; word-break: break-word; }",
             "    .sidebar a:hover .case-number { background: #d0d0d0; }",
             "    .sidebar a.active .case-number { background: rgba(255,255,255,0.3); }",
             "    /* Main content */",
@@ -341,6 +344,8 @@ class DocumentGenerator:
             "    .action { color: #007AFF; font-weight: 500; }",
             "    .assert { color: #34C759; font-weight: 500; }",
             "    .summary { color: #333; margin-bottom: 10px; }",
+            "    .case-name-label { color: #888; font-size: 0.9em; margin: -10px 0 15px 0; }",
+            "    .case-name-label code { background: #f5f5f5; color: #666; }",
             "    .desc-section { margin: 10px 0; padding-left: 10px; border-left: 3px solid #e0e0e0; }",
             "    .desc-section ul, .desc-section ol { margin: 5px 0; padding-left: 25px; }",
             "    .notes { color: #666; font-style: italic; background: #fffbf0; padding: 10px; border-radius: 5px; }",
@@ -364,9 +369,9 @@ class DocumentGenerator:
             parts.append("    <div class='sidebar-title'>Test Cases</div>")
             parts.append("    <ul>")
             for i, case in enumerate(cases, 1):
-                case_name = case.get("name", f"Case {i}")
+                case_display = case.get("description") or case.get("name", f"Case {i}")
                 case_id = f"case-{i}"
-                parts.append(f"      <li><a href='#{case_id}'><span class='case-number'>{i}</span>{self._escape_html(case_name)}</a></li>")
+                parts.append(f"      <li><a href='#{case_id}'><span class='case-number'>{i}</span><span class='case-name'>{self._escape_html(case_display)}</span></a></li>")
             parts.append("    </ul>")
 
         parts.append("  </nav>")
