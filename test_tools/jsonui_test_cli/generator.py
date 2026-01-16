@@ -248,37 +248,42 @@ class DocumentGenerator:
         metadata = data.get("metadata", {})
         title = metadata.get("name", result.file_path.stem)
         description = metadata.get("description", "")
+        cases = data.get("cases", [])
 
-        html_parts = self._get_html_header(title)
+        html_parts = self._get_html_header(title, cases)
+
+        # Main content wrapper
+        html_parts.append("  <main class='main-content'>")
+        html_parts.append(f"    <h1>{self._escape_html(title)}</h1>")
 
         if description:
-            html_parts.append(f"  <p class='description'>{self._escape_html(description)}</p>")
+            html_parts.append(f"    <p class='description'>{self._escape_html(description)}</p>")
 
         # Test info
-        html_parts.append("  <div class='info'>")
-        html_parts.append(f"    <strong>Type:</strong> {data.get('type', 'unknown')}<br>")
-        html_parts.append(f"    <strong>Platform:</strong> {data.get('platform', 'all')}<br>")
+        html_parts.append("    <div class='info'>")
+        html_parts.append(f"      <strong>Type:</strong> {data.get('type', 'unknown')}<br>")
+        html_parts.append(f"      <strong>Platform:</strong> {data.get('platform', 'all')}<br>")
         if "source" in data:
-            html_parts.append(f"    <strong>Layout:</strong> <code>{self._escape_html(data['source'].get('layout', 'N/A'))}</code><br>")
-        html_parts.append(f"    <strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        html_parts.append("  </div>")
+            html_parts.append(f"      <strong>Layout:</strong> <code>{self._escape_html(data['source'].get('layout', 'N/A'))}</code><br>")
+        html_parts.append(f"      <strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        html_parts.append("    </div>")
 
         # Test cases
-        cases = data.get("cases", [])
         if cases:
-            html_parts.append("  <h2>Test Cases</h2>")
+            html_parts.append("    <h2>Test Cases</h2>")
 
             for i, case in enumerate(cases, 1):
                 case_name = case.get("name", f"Case {i}")
+                case_id = f"case-{i}"
                 case_desc = self._resolve_description(case)
 
-                html_parts.append(f"  <h3>{i}. {self._escape_html(case_name)}</h3>")
+                html_parts.append(f"    <h3 id='{case_id}'>{i}. {self._escape_html(case_name)}</h3>")
                 html_parts.extend(self._format_description_html(case_desc))
 
                 steps = case.get("steps", [])
                 if steps:
-                    html_parts.append("  <table>")
-                    html_parts.append("    <tr><th>#</th><th>Type</th><th>Action/Assert</th><th>Target</th><th>Details</th></tr>")
+                    html_parts.append("    <table>")
+                    html_parts.append("      <tr><th>#</th><th>Type</th><th>Action/Assert</th><th>Target</th><th>Details</th></tr>")
 
                     for j, step in enumerate(steps, 1):
                         step_type = "action" if "action" in step else "assert"
@@ -286,18 +291,21 @@ class DocumentGenerator:
                         action_name = step.get("action") or step.get("assert", "?")
                         target = step.get("id") or ", ".join(step.get("ids", [])) or "-"
                         details = self._format_step_details(step)
-                        html_parts.append(f"    <tr><td>{j}</td><td><span class='{step_type}'>{type_label}</span></td><td><code>{action_name}</code></td><td><code>{target}</code></td><td>{details}</td></tr>")
+                        html_parts.append(f"      <tr><td>{j}</td><td><span class='{step_type}'>{type_label}</span></td><td><code>{action_name}</code></td><td><code>{target}</code></td><td>{details}</td></tr>")
 
-                    html_parts.append("  </table>")
+                    html_parts.append("    </table>")
 
+        html_parts.append("  </main>")
         html_parts.append("</body>")
         html_parts.append("</html>")
 
         return "\n".join(html_parts)
 
-    def _get_html_header(self, title: str) -> list[str]:
-        """Get HTML header with styles."""
-        return [
+    def _get_html_header(self, title: str, cases: list = None) -> list[str]:
+        """Get HTML header with styles and sidebar."""
+        cases = cases or []
+
+        parts = [
             "<!DOCTYPE html>",
             "<html lang='en'>",
             "<head>",
@@ -305,10 +313,25 @@ class DocumentGenerator:
             "  <meta charset='utf-8'>",
             "  <meta name='viewport' content='width=device-width, initial-scale=1'>",
             "  <style>",
-            "    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; line-height: 1.6; }",
-            "    h1 { color: #333; border-bottom: 2px solid #007AFF; padding-bottom: 10px; }",
+            "    * { box-sizing: border-box; }",
+            "    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; line-height: 1.6; display: flex; }",
+            "    /* Sidebar */",
+            "    .sidebar { width: 280px; min-width: 280px; height: 100vh; position: fixed; top: 0; left: 0; background: #f8f9fa; border-right: 1px solid #e0e0e0; overflow-y: auto; padding: 20px; }",
+            "    .sidebar h2 { font-size: 1em; color: #333; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0; }",
+            "    .sidebar-title { font-size: 0.85em; color: #666; font-weight: 600; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }",
+            "    .sidebar ul { list-style: none; padding: 0; margin: 0; }",
+            "    .sidebar li { margin: 4px 0; }",
+            "    .sidebar a { display: block; padding: 8px 12px; color: #555; text-decoration: none; border-radius: 6px; font-size: 0.9em; transition: all 0.2s; }",
+            "    .sidebar a:hover { background: #e9ecef; color: #007AFF; }",
+            "    .sidebar a.active { background: #007AFF; color: white; }",
+            "    .case-number { display: inline-block; width: 24px; height: 24px; line-height: 24px; text-align: center; background: #e0e0e0; border-radius: 50%; font-size: 0.75em; font-weight: 600; margin-right: 8px; }",
+            "    .sidebar a:hover .case-number { background: #d0d0d0; }",
+            "    .sidebar a.active .case-number { background: rgba(255,255,255,0.3); }",
+            "    /* Main content */",
+            "    .main-content { margin-left: 280px; padding: 30px 40px; max-width: 900px; flex: 1; }",
+            "    h1 { color: #333; border-bottom: 2px solid #007AFF; padding-bottom: 10px; margin-top: 0; }",
             "    h2 { color: #555; margin-top: 30px; }",
-            "    h3 { color: #666; margin-top: 25px; }",
+            "    h3 { color: #666; margin-top: 25px; scroll-margin-top: 20px; }",
             "    table { border-collapse: collapse; width: 100%; margin: 15px 0; }",
             "    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }",
             "    th { background: #f5f5f5; }",
@@ -323,11 +346,32 @@ class DocumentGenerator:
             "    .notes { color: #666; font-style: italic; background: #fffbf0; padding: 10px; border-radius: 5px; }",
             "    a { color: #007AFF; text-decoration: none; }",
             "    a:hover { text-decoration: underline; }",
+            "    /* Responsive */",
+            "    @media (max-width: 768px) {",
+            "      .sidebar { display: none; }",
+            "      .main-content { margin-left: 0; padding: 20px; }",
+            "    }",
             "  </style>",
             "</head>",
             "<body>",
-            f"  <h1>{self._escape_html(title)}</h1>",
         ]
+
+        # Sidebar with case navigation
+        parts.append("  <nav class='sidebar'>")
+        parts.append(f"    <h2>{self._escape_html(title)}</h2>")
+
+        if cases:
+            parts.append("    <div class='sidebar-title'>Test Cases</div>")
+            parts.append("    <ul>")
+            for i, case in enumerate(cases, 1):
+                case_name = case.get("name", f"Case {i}")
+                case_id = f"case-{i}"
+                parts.append(f"      <li><a href='#{case_id}'><span class='case-number'>{i}</span>{self._escape_html(case_name)}</a></li>")
+            parts.append("    </ul>")
+
+        parts.append("  </nav>")
+
+        return parts
 
     def _format_step_details(self, step: dict) -> str:
         """Format step details for display."""
