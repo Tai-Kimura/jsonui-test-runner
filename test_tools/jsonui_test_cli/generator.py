@@ -330,6 +330,8 @@ class DocumentGenerator:
             "    .case-name { flex: 1; word-break: break-word; }",
             "    .sidebar a:hover .case-number { background: #d0d0d0; }",
             "    .sidebar a.active .case-number { background: rgba(255,255,255,0.3); }",
+            "    .back-link { display: block; padding: 10px 12px; margin-bottom: 15px; color: #007AFF; font-size: 0.9em; border-bottom: 1px solid #e0e0e0; }",
+            "    .back-link:hover { background: #e9ecef; }",
             "    /* Main content */",
             "    .main-content { margin-left: 280px; padding: 30px 40px; max-width: 900px; flex: 1; }",
             "    h1 { color: #333; border-bottom: 2px solid #007AFF; padding-bottom: 10px; margin-top: 0; }",
@@ -363,6 +365,7 @@ class DocumentGenerator:
 
         # Sidebar with case navigation
         parts.append("  <nav class='sidebar'>")
+        parts.append("    <a href='../index.html' class='back-link'>&larr; Back to Index</a>")
         parts.append(f"    <h2>{self._escape_html(title)}</h2>")
 
         if cases:
