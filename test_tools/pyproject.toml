@@ -2,8 +2,9 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools.packages.find]
-include = ["jsonui_test_cli*"]
+[tool.setuptools]
+packages = ["jsonui_test_cli"]
+package-dir = {"jsonui_test_cli" = "jsonui_test_cli"}
 
 [project]
 name = "jsonui-test-cli"
