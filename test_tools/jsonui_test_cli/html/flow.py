@@ -53,9 +53,12 @@ def generate_flow_html(
     checkpoints = data.get("checkpoints", [])
 
     # Build sidebar data (file references and blocks, not inline action/assert)
+    # Only file references and blocks get numbered
     sidebar_steps = []
-    for i, step in enumerate(steps, 1):
+    numbered_step_num = 0
+    for step in steps:
         if "file" in step:
+            numbered_step_num += 1
             # File reference - get label from referenced case description
             file_ref = step.get("file", "")
             case_name = step.get("case")
@@ -65,12 +68,13 @@ def generate_flow_html(
             label = get_ref_case_label_fn(file_ref, case_name, cases_list)
 
             sidebar_steps.append({
-                "num": i,
+                "num": numbered_step_num,
                 "type": "file",
                 "label": label,
                 "detail": ""
             })
         elif "block" in step:
+            numbered_step_num += 1
             # Block step - show in sidebar with description or block name
             block_name = step.get("block", "")
             block_desc = step.get("description", "")
@@ -83,12 +87,12 @@ def generate_flow_html(
 
             label = block_desc or block_name
             sidebar_steps.append({
-                "num": i,
+                "num": numbered_step_num,
                 "type": "block",
                 "label": label,
                 "detail": ""
             })
-        # Inline steps (action/assert) are not shown in sidebar
+        # Inline steps (action/assert) are not shown in sidebar and not numbered
 
     # Build HTML
     html_parts = _get_html_header(title, name)
@@ -126,11 +130,21 @@ def generate_flow_html(
 
     # Flow Steps
     html_parts.append("    <h2>Flow Steps</h2>")
-    for i, step in enumerate(steps, 1):
-        html_parts.extend(_render_flow_step(
-            i, step, "step", format_step_details_fn, render_referenced_cases_fn,
-            resolve_block_description_fn, format_block_description_html_fn
-        ))
+    numbered_step_num = 0
+    for step in steps:
+        # Only file references and blocks get numbered
+        if "file" in step or "block" in step:
+            numbered_step_num += 1
+            html_parts.extend(_render_flow_step(
+                numbered_step_num, step, "step", format_step_details_fn, render_referenced_cases_fn,
+                resolve_block_description_fn, format_block_description_html_fn
+            ))
+        else:
+            # Inline action/assert - no number
+            html_parts.extend(_render_flow_step(
+                None, step, "step", format_step_details_fn, render_referenced_cases_fn,
+                resolve_block_description_fn, format_block_description_html_fn
+            ))
 
     # Teardown section
     if teardown_steps:
@@ -163,7 +177,7 @@ def generate_flow_html(
 
 
 def _render_flow_step(
-    num: int,
+    num: int | None,
     step: dict,
     context: str,
     format_step_details_fn,
@@ -171,9 +185,13 @@ def _render_flow_step(
     resolve_block_description_fn=None,
     format_block_description_html_fn=None
 ) -> list[str]:
-    """Render a single flow step as HTML."""
+    """Render a single flow step as HTML.
+
+    Args:
+        num: Step number (None for inline action/assert steps that shouldn't be numbered)
+    """
     parts = []
-    step_id = f"{context}-{num}"
+    step_id = f"{context}-{num}" if num else f"{context}-inline"
 
     if "file" in step:
         # File reference step
