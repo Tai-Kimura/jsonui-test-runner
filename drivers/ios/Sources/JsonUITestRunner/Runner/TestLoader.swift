@@ -246,8 +246,16 @@ extension TestLoader {
             throw TestLoaderError.fileNotFound(path: fileRef)
         }
 
-        // Try different file extensions
+        // Parent of basePath (e.g., tests/ when basePath is tests/flows/)
+        let parentBase = base.deletingLastPathComponent()
+
+        // Try different locations and file extensions
+        // Priority: ../screens/ (sibling directory) first, then same directory
         let candidates = [
+            parentBase.appendingPathComponent("screens/\(fileRef)/\(fileRef).test.json"),
+            parentBase.appendingPathComponent("screens/\(fileRef)/\(fileRef).json"),
+            parentBase.appendingPathComponent("screens/\(fileRef).test.json"),
+            parentBase.appendingPathComponent("screens/\(fileRef).json"),
             base.appendingPathComponent("\(fileRef).test.json"),
             base.appendingPathComponent("\(fileRef).json"),
             base.appendingPathComponent(fileRef)

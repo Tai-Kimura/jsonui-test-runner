@@ -261,8 +261,14 @@ class DocumentGenerator:
             return []
 
         # Resolve the file path
+        # Priority: ../screens/ (sibling directory) first, then same directory
         base_dir = self._test_file_path.parent
+        parent_dir = base_dir.parent
         candidates = [
+            parent_dir / "screens" / file_ref / f"{file_ref}.test.json",
+            parent_dir / "screens" / file_ref / f"{file_ref}.json",
+            parent_dir / "screens" / f"{file_ref}.test.json",
+            parent_dir / "screens" / f"{file_ref}.json",
             base_dir / f"{file_ref}.test.json",
             base_dir / f"{file_ref}.json",
             base_dir / file_ref,
@@ -368,8 +374,14 @@ class DocumentGenerator:
             return file_ref.split("/")[-1] if "/" in file_ref else file_ref
 
         # Resolve the file path
+        # Priority: ../screens/ (sibling directory) first, then same directory
         base_dir = self._test_file_path.parent
+        parent_dir = base_dir.parent
         candidates = [
+            parent_dir / "screens" / file_ref / f"{file_ref}.test.json",
+            parent_dir / "screens" / file_ref / f"{file_ref}.json",
+            parent_dir / "screens" / f"{file_ref}.test.json",
+            parent_dir / "screens" / f"{file_ref}.json",
             base_dir / f"{file_ref}.test.json",
             base_dir / f"{file_ref}.json",
             base_dir / file_ref,
