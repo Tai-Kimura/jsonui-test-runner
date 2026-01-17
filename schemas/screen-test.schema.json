@@ -58,6 +58,15 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Tags for filtering tests (e.g., ['smoke', 'regression'])"
+        },
+        "entry_screen": {
+          "type": "boolean",
+          "default": false,
+          "description": "Mark this screen as an entry point (e.g., splash, login). Entry screens are positioned on the left in Mermaid flow diagrams."
+        },
+        "group": {
+          "type": "string",
+          "description": "Group name for Mermaid diagram subgraph. Screens with the same group are displayed together."
         }
       },
       "required": ["name"],

@@ -176,7 +176,8 @@ def generate_flow_sidebar(
 def generate_index_sidebar(
     title: str,
     flow_files: list[dict],
-    screen_files: list[dict]
+    screen_files: list[dict],
+    has_mermaid_diagram: bool = False
 ) -> list[str]:
     """
     Generate sidebar HTML for index page.
@@ -185,6 +186,7 @@ def generate_index_sidebar(
         title: Page title
         flow_files: List of flow test file dicts
         screen_files: List of screen test file dicts
+        has_mermaid_diagram: Whether a Mermaid diagram was generated
 
     Returns:
         List of HTML strings for the sidebar
@@ -192,6 +194,12 @@ def generate_index_sidebar(
     parts = []
     parts.append("  <nav class='sidebar'>")
     parts.append(f"    <h2>{escape_html(title)}</h2>")
+
+    # Flow Diagram link (if available)
+    if has_mermaid_diagram:
+        parts.append("    <div class='sidebar-diagram-link'>")
+        parts.append("      <a href='diagram.html'>Flow Diagram</a>")
+        parts.append("    </div>")
 
     # Sidebar - Flow Tests first (collapsible, starts collapsed)
     if flow_files:

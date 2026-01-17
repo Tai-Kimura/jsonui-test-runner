@@ -12,7 +12,8 @@ from .sidebar import generate_index_sidebar, escape_html
 def generate_index_html(
     output_dir: Path,
     files: list[dict],
-    title: str
+    title: str,
+    has_mermaid_diagram: bool = False
 ) -> None:
     """
     Generate index.html with collapsible categories and sidebar navigation.
@@ -21,6 +22,7 @@ def generate_index_html(
         output_dir: Output directory path
         files: List of generated file info dicts
         title: Page title
+        has_mermaid_diagram: Whether a Mermaid diagram was generated
     """
     screen_files = [f for f in files if f['type'] == 'screen']
     flow_files = [f for f in files if f['type'] == 'flow']
@@ -32,11 +34,23 @@ def generate_index_html(
     total_steps = sum(f['step_count'] for f in files)
 
     html_parts = _get_html_header(title)
-    html_parts.extend(generate_index_sidebar(title, flow_files, screen_files))
+    html_parts.extend(generate_index_sidebar(title, flow_files, screen_files, has_mermaid_diagram))
 
     # Main content
     html_parts.append("  <main class='main-content'>")
     html_parts.append(f"    <h1>{escape_html(title)}</h1>")
+
+    # Flow Diagram link (if available)
+    if has_mermaid_diagram:
+        html_parts.extend([
+            "    <div class='diagram-link-container'>",
+            "      <a href='diagram.html' class='diagram-link'>",
+            "        <span class='diagram-icon'>📊</span>",
+            "        <span class='diagram-text'>View Flow Diagram</span>",
+            "        <span class='diagram-desc'>Screen transition visualization</span>",
+            "      </a>",
+            "    </div>",
+        ])
 
     # Summary section
     html_parts.extend([

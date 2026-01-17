@@ -15,6 +15,7 @@ from datetime import datetime
 from . import __version__
 from .validator import TestValidator
 from .generator import DocumentGenerator, generate_schema_reference, generate_html_directory
+from .mermaid import generate_mermaid_diagram, generate_mermaid_html
 
 
 def cmd_validate(args):
@@ -279,6 +280,51 @@ def cmd_generate_html(args):
         return 1
 
 
+def cmd_generate_mermaid(args):
+    """Handle 'generate mermaid' command - generate Mermaid flow diagram."""
+    input_dir = Path(args.input)
+    output_path = Path(args.output) if args.output else None
+    title = args.title or "Flow Diagram"
+    screens_dir = Path(args.screens) if args.screens else None
+
+    # Determine flows directory
+    flows_dir = input_dir / "flows" if (input_dir / "flows").exists() else input_dir
+
+    if not flows_dir.exists():
+        print(f"Error: Input directory not found: {flows_dir}", file=sys.stderr)
+        return 1
+
+    # Determine screens directory
+    if screens_dir is None:
+        if (input_dir / "screens").exists():
+            screens_dir = input_dir / "screens"
+        else:
+            screens_dir = flows_dir.parent / "screens"
+
+    print(f"Generating Mermaid diagram...")
+    print(f"  Flows: {flows_dir}")
+    print(f"  Screens: {screens_dir}")
+
+    try:
+        if output_path:
+            # Generate HTML with embedded Mermaid
+            mermaid_code = generate_mermaid_html(flows_dir, output_path, title, screens_dir)
+            print()
+            print(f"Generated: {output_path}")
+            print(f"Open in browser to view the diagram")
+        else:
+            # Output Mermaid code to stdout
+            mermaid_code = generate_mermaid_diagram(flows_dir, screens_dir)
+            print()
+            print(mermaid_code)
+
+        return 0
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
 # Legacy generate command for backwards compatibility
 def cmd_generate(args):
     """Handle legacy generate command (redirects to 'generate doc')."""
@@ -461,6 +507,28 @@ def main():
         help="Title for index page (default: JsonUI Test Documentation)"
     )
 
+    # Generate mermaid subcommand
+    gen_mermaid_parser = generate_subparsers.add_parser(
+        "mermaid",
+        help="Generate Mermaid flow diagram from flow tests"
+    )
+    gen_mermaid_parser.add_argument(
+        "input",
+        help="Input directory containing tests (with flows/ and screens/ subdirs)"
+    )
+    gen_mermaid_parser.add_argument(
+        "-o", "--output",
+        help="Output HTML file path (if not specified, outputs Mermaid code to stdout)"
+    )
+    gen_mermaid_parser.add_argument(
+        "-t", "--title",
+        help="Title for diagram page (default: Flow Diagram)"
+    )
+    gen_mermaid_parser.add_argument(
+        "-s", "--screens",
+        help="Path to screens directory (default: auto-detect)"
+    )
+
     # Legacy: direct generate options (for backwards compatibility)
     generate_parser.add_argument(
         "-f", "--file",
@@ -512,6 +580,8 @@ def main():
                 return cmd_generate_doc(args)
             elif args.generate_type == "html":
                 return cmd_generate_html(args)
+            elif args.generate_type == "mermaid":
+                return cmd_generate_mermaid(args)
         # Legacy: if --file or --schema is used directly
         elif args.file or args.schema:
             return cmd_generate(args)

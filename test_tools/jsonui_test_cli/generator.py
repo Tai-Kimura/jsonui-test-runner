@@ -14,6 +14,7 @@ from .html import (
 )
 from .html.sidebar import escape_html
 from .markdown import generate_markdown, generate_schema_markdown
+from .mermaid import generate_mermaid_html
 
 
 class DocumentGenerator:
@@ -641,7 +642,21 @@ def generate_html_directory(
         except Exception as e:
             print(f"  Error processing {file_info['test_file']}: {e}")
 
+    # Generate Mermaid diagram if there are flow files
+    mermaid_generated = False
+    flow_files_exist = any(f['type'] == 'flow' for f in generated_files)
+    if flow_files_exist:
+        try:
+            flows_dir = input_path / "flows" if (input_path / "flows").exists() else input_path
+            screens_dir = input_path / "screens" if (input_path / "screens").exists() else flows_dir.parent / "screens"
+            mermaid_output = output_path / "diagram.html"
+            generate_mermaid_html(flows_dir, mermaid_output, "Flow Diagram", screens_dir)
+            mermaid_generated = True
+            print(f"  Generated: {mermaid_output}")
+        except Exception as e:
+            print(f"  Warning: Could not generate Mermaid diagram: {e}")
+
     # Generate index.html
-    generate_index_html(output_path, generated_files, title)
+    generate_index_html(output_path, generated_files, title, mermaid_generated)
 
     return generated_files
