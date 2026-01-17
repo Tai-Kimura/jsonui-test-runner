@@ -142,19 +142,35 @@ class StepValidator:
 
         base_dir = self._test_file_path.parent
 
-        # Try different file extensions
+        # Find tests root (parent of flows/ or screens/)
+        tests_root = base_dir
+        if base_dir.name == "flows" or base_dir.name == "screens":
+            tests_root = base_dir.parent
+        elif base_dir.parent.name == "flows" or base_dir.parent.name == "screens":
+            tests_root = base_dir.parent.parent
+
+        # Try different file locations
         candidates = [
+            # Same directory as flow test
             base_dir / f"{file_ref}.test.json",
             base_dir / f"{file_ref}.json",
             base_dir / file_ref,
+            # screens/{file_ref}/{file_ref}.test.json (standard screen test structure)
+            tests_root / "screens" / file_ref / f"{file_ref}.test.json",
+            # screens/{file_ref}.test.json (flat structure)
+            tests_root / "screens" / f"{file_ref}.test.json",
+            # flows/{file_ref}/{file_ref}.test.json
+            tests_root / "flows" / file_ref / f"{file_ref}.test.json",
+            # flows/{file_ref}.test.json
+            tests_root / "flows" / f"{file_ref}.test.json",
         ]
 
         for candidate in candidates:
             if candidate.exists():
                 return candidate
 
-        # Return first candidate for error message
-        return candidates[0]
+        # Return the most likely location for error message
+        return tests_root / "screens" / file_ref / f"{file_ref}.test.json"
 
     def _validate_block_step(self, step: dict, path: str, result: ValidationResult):
         """Validate a block step in flow tests."""
