@@ -65,8 +65,11 @@
           "description": "Mark this screen as an entry point (e.g., splash, login). Entry screens are positioned on the left in Mermaid flow diagrams."
         },
         "group": {
-          "type": "string",
-          "description": "Group name for Mermaid diagram subgraph. Screens with the same group are displayed together."
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ],
+          "description": "Group name(s) for Mermaid diagram. Can be a string or array. When array, the screen appears in multiple group tabs."
         }
       },
       "required": ["name"],

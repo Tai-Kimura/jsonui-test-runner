@@ -176,10 +176,10 @@ def get_flow_styles() -> list[str]:
         "    .ref-steps-table .action { color: #007AFF; font-weight: 500; }",
         "    .ref-steps-table .assert { color: #34C759; font-weight: 500; }",
         "    .step-detail.warning { color: #ff9800; font-style: italic; }",
-        "    .ref-desc-section { margin: 8px 0; padding-left: 10px; font-size: 0.9em; }",
-        "    .ref-desc-section ul, .ref-desc-section ol { margin: 5px 0; padding-left: 20px; }",
+        "    .ref-desc-section { margin: 10px 0; padding-left: 10px; border-left: 3px solid #e0e0e0; }",
+        "    .ref-desc-section ul, .ref-desc-section ol { margin: 5px 0; padding-left: 25px; }",
         "    .ref-desc-section li { margin: 2px 0; }",
-        "    .ref-notes { color: #666; font-style: italic; background: #fffbf0; padding: 8px; border-radius: 4px; font-size: 0.85em; margin: 8px 0; }",
+        "    .ref-notes { color: #666; font-style: italic; background: #fffbf0; padding: 10px; border-radius: 5px; margin: 10px 0; }",
     ])
     styles.extend(get_responsive_styles())
     return styles
