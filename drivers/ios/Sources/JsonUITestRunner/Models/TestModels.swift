@@ -91,9 +91,20 @@ public struct FlowTestStep: Codable {
     public let `case`: String?
     public let cases: [String]?
 
+    // For block steps (grouped inline actions)
+    public let block: String?
+    public let description: String?
+    public let descriptionFile: String?
+    public let steps: [FlowTestStep]?
+
     /// Whether this is a file reference step
     public var isFileReference: Bool {
         file != nil
+    }
+
+    /// Whether this is a block step
+    public var isBlockStep: Bool {
+        block != nil
     }
 
     /// Whether this is an inline action/assertion step

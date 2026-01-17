@@ -255,11 +255,33 @@ public class JsonUITestRunner {
             return
         }
 
+        // Handle block steps (grouped inline actions)
+        if step.isBlockStep {
+            try executeBlockStep(step)
+            return
+        }
+
         // Handle inline steps
         if step.action != nil {
             try actionExecutor.execute(flowStep: step, in: app)
         } else if step.assert != nil {
             try assertionExecutor.execute(flowStep: step, in: app)
+        }
+    }
+
+    private func executeBlockStep(_ step: FlowTestStep) throws {
+        guard let blockSteps = step.steps else {
+            return
+        }
+
+        // Execute each step in the block
+        for innerStep in blockSteps {
+            // Block steps can only contain action/assert steps (no nested blocks or file references)
+            if innerStep.action != nil {
+                try actionExecutor.execute(flowStep: innerStep, in: app)
+            } else if innerStep.assert != nil {
+                try assertionExecutor.execute(flowStep: innerStep, in: app)
+            }
         }
     }
 
