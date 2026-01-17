@@ -150,7 +150,9 @@ VALID_STEP_KEYS = [
     "duration", "timeout", "ms", "name", "equals", "contains",
     "path", "amount", "screen", "text", "button", "label", "index",
     # File reference step keys (for flow tests)
-    "file", "case", "cases"
+    "file", "case", "cases",
+    # Block step keys (for flow tests - grouped inline steps)
+    "block", "description", "descriptionFile", "steps"
 ]
 
 # Valid keys in description file

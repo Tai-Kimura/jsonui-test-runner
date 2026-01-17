@@ -588,5 +588,166 @@ class TestDescriptionFileValidation:
             assert not result.is_valid
 
 
+class TestFlowBlockStepValidation:
+    """Tests for flow test block step validation."""
+
+    def setup_method(self):
+        self.validator = TestValidator()
+
+    def _make_flow_test(self, steps: list) -> dict:
+        return {
+            "type": "flow",
+            "metadata": {"name": "flow_test"},
+            "steps": steps
+        }
+
+    def test_valid_block_step(self):
+        """Test valid block step in flow test."""
+        data = self._make_flow_test([
+            {
+                "block": "error_handling",
+                "description": "Handle login errors",
+                "steps": [
+                    {"action": "tap", "id": "retry_button"},
+                    {"assert": "visible", "id": "error_message"}
+                ]
+            }
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_block_step_without_description(self):
+        """Test block step without description is valid."""
+        data = self._make_flow_test([
+            {
+                "block": "simple_block",
+                "steps": [
+                    {"action": "tap", "id": "button"}
+                ]
+            }
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_block_step_empty_name_fails(self):
+        """Test block step with empty name fails."""
+        data = self._make_flow_test([
+            {
+                "block": "",
+                "steps": [{"action": "tap", "id": "button"}]
+            }
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("non-empty string" in str(e) for e in result.errors)
+
+    def test_block_step_missing_steps_fails(self):
+        """Test block step without steps array fails."""
+        data = self._make_flow_test([
+            {
+                "block": "my_block",
+                "description": "A block"
+            }
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("must have 'steps'" in str(e) for e in result.errors)
+
+    def test_block_step_empty_steps_fails(self):
+        """Test block step with empty steps array fails."""
+        data = self._make_flow_test([
+            {
+                "block": "my_block",
+                "steps": []
+            }
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("non-empty array" in str(e) for e in result.errors)
+
+    def test_block_step_with_file_ref_inside_fails(self):
+        """Test block step containing file reference fails."""
+        data = self._make_flow_test([
+            {
+                "block": "my_block",
+                "steps": [
+                    {"file": "screens/login", "case": "test"}
+                ]
+            }
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("not allowed inside block" in str(e) for e in result.errors)
+
+    def test_nested_block_fails(self):
+        """Test nested block step fails."""
+        data = self._make_flow_test([
+            {
+                "block": "outer_block",
+                "steps": [
+                    {
+                        "block": "inner_block",
+                        "steps": [{"action": "tap", "id": "btn"}]
+                    }
+                ]
+            }
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("Nested blocks are not allowed" in str(e) for e in result.errors)
+
+    def test_block_step_not_allowed_in_screen_test(self):
+        """Test block step in screen test fails."""
+        data = {
+            "type": "screen",
+            "metadata": {"name": "test"},
+            "cases": [
+                {
+                    "name": "case1",
+                    "steps": [
+                        {
+                            "block": "my_block",
+                            "steps": [{"action": "tap", "id": "btn"}]
+                        }
+                    ]
+                }
+            ]
+        }
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("only allowed in flow tests" in str(e) for e in result.errors)
+
+    def test_mixed_blocks_and_file_refs(self):
+        """Test flow with mixed blocks, file refs, and inline steps."""
+        data = self._make_flow_test([
+            {"file": "screens/login", "case": "valid_login"},
+            {
+                "block": "error_handling",
+                "description": "Handle errors",
+                "steps": [
+                    {"action": "tap", "id": "retry_button"},
+                    {"assert": "visible", "id": "success_message"}
+                ]
+            },
+            {"action": "waitFor", "id": "home_screen", "timeout": 5000},
+            {"file": "screens/home", "case": "verify_display"}
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_block_unknown_key_warning(self):
+        """Test block step with unknown key produces warning."""
+        data = self._make_flow_test([
+            {
+                "block": "my_block",
+                "unknown_key": "value",
+                "steps": [{"action": "tap", "id": "btn"}]
+            }
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+        assert result.warning_count > 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

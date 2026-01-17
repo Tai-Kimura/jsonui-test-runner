@@ -395,10 +395,12 @@ class TestFlowTestHtmlGeneration:
             assert "class='sidebar'" in content
             assert "sidebar-section" in content
             assert "Steps" in content
-            # Check step icons
-            assert "#step-1" in content
-            assert "#step-2" in content
-            assert "#step-3" in content
+            # Sidebar only shows file reference steps (step-1), not inline action/assert
+            assert "href='#step-1'" in content
+            # Main content shows all steps (including inline action/assert)
+            assert "id='step-1'" in content
+            assert "id='step-2'" in content
+            assert "id='step-3'" in content
         finally:
             temp_path.unlink()
 

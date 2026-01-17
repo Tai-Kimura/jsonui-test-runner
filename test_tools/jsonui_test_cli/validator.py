@@ -240,6 +240,17 @@ class TestValidator:
             self._validate_file_step(step, path, result)
             return
 
+        # Check for block step (flow tests only)
+        if "block" in step:
+            if not is_flow:
+                result.errors.append(ValidationMessage(
+                    path=path,
+                    message="Block steps are only allowed in flow tests"
+                ))
+                return
+            self._validate_block_step(step, path, result)
+            return
+
         # Check for unknown keys
         for key in step.keys():
             if key not in VALID_STEP_KEYS:
@@ -348,6 +359,76 @@ class TestValidator:
 
         # Return first candidate for error message
         return candidates[0]
+
+    def _validate_block_step(self, step: dict, path: str, result: ValidationResult):
+        """Validate a block step in flow tests."""
+        block_name = step["block"]
+
+        # Validate block name is non-empty string
+        if not isinstance(block_name, str) or not block_name.strip():
+            result.errors.append(ValidationMessage(
+                path=path,
+                message="'block' must be a non-empty string"
+            ))
+            return
+
+        # Check for valid keys in block step
+        valid_block_step_keys = {"block", "description", "descriptionFile", "steps"}
+        for key in step.keys():
+            if key not in valid_block_step_keys:
+                result.warnings.append(ValidationMessage(
+                    path=path,
+                    message=f"Unknown key in block step: {key}",
+                    level="warning"
+                ))
+
+        # Validate steps is required and non-empty
+        if "steps" not in step:
+            result.errors.append(ValidationMessage(
+                path=path,
+                message="Block step must have 'steps' array"
+            ))
+            return
+
+        steps = step["steps"]
+        if not isinstance(steps, list) or len(steps) == 0:
+            result.errors.append(ValidationMessage(
+                path=path,
+                message="Block 'steps' must be a non-empty array"
+            ))
+            return
+
+        # Validate each step in the block (inline steps only, no nested blocks/files)
+        for i, inner_step in enumerate(steps):
+            inner_step_path = f"{path}.steps[{i}]"
+            # Block steps can only contain action/assert steps, not file references or nested blocks
+            if "file" in inner_step:
+                result.errors.append(ValidationMessage(
+                    path=inner_step_path,
+                    message="File references are not allowed inside block steps"
+                ))
+            elif "block" in inner_step:
+                result.errors.append(ValidationMessage(
+                    path=inner_step_path,
+                    message="Nested blocks are not allowed inside block steps"
+                ))
+            else:
+                self._validate_step(inner_step, inner_step_path, result, is_flow=False)
+
+        # Validate descriptionFile if present
+        if "descriptionFile" in step and self._test_file_path:
+            desc_file_path = step["descriptionFile"]
+            # Resolve relative to test file location
+            if not Path(desc_file_path).is_absolute():
+                desc_file_path = self._test_file_path.parent / desc_file_path
+
+            desc_path = Path(desc_file_path)
+            if not desc_path.exists():
+                result.warnings.append(ValidationMessage(
+                    path=path,
+                    message=f"Description file not found: {step['descriptionFile']}",
+                    level="warning"
+                ))
 
     def _validate_action(self, step: dict, path: str, result: ValidationResult):
         """Validate an action step."""
