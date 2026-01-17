@@ -148,7 +148,7 @@ def get_flow_styles() -> list[str]:
         "    .inline-step-target code { background: #f0f0f0; padding: 2px 4px; border-radius: 3px; }",
         "    .inline-step-details { color: #888; font-size: 0.85em; }",
         "    /* Block steps */",
-        "    .flow-step.block-step { border-left: 4px solid #ff9800; }",
+        "    .flow-step.block-step { }",
         "    .block-title { font-weight: 500; margin-left: 10px; color: #333; }",
         "    .block-steps { margin-top: 12px; padding: 12px; background: #fafafa; border-radius: 6px; border: 1px solid #eee; }",
         "    .block-steps-header { font-size: 0.85em; font-weight: 600; color: #666; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; }",

@@ -235,33 +235,20 @@ def _render_flow_step(
             if desc_html:
                 parts.extend(desc_html)
 
-        # Render block steps
+        # Render block steps as table (same as screen test case steps)
         if block_steps:
             parts.append(f"        <div class='block-steps'>")
             parts.append(f"          <div class='block-steps-header'>Steps ({len(block_steps)})</div>")
+            parts.append(f"          <table>")
+            parts.append(f"            <tr><th>#</th><th>Type</th><th>Action/Assert</th><th>Target</th><th>Details</th></tr>")
             for j, inner_step in enumerate(block_steps, 1):
-                if "action" in inner_step:
-                    action = inner_step.get("action", "?")
-                    target = inner_step.get("id") or ", ".join(inner_step.get("ids", [])) or "-"
-                    details = format_step_details_fn(inner_step)
-                    parts.append(f"          <div class='inline-step'>")
-                    parts.append(f"            <span class='step-type-badge action'>Action</span>")
-                    parts.append(f"            <code>{escape_html(action)}</code>")
-                    parts.append(f"            <span class='inline-step-target'>-> <code>{escape_html(target)}</code></span>")
-                    if details:
-                        parts.append(f"            <span class='inline-step-details'>({escape_html(details)})</span>")
-                    parts.append(f"          </div>")
-                elif "assert" in inner_step:
-                    assertion = inner_step.get("assert", "?")
-                    target = inner_step.get("id") or ", ".join(inner_step.get("ids", [])) or "-"
-                    details = format_step_details_fn(inner_step)
-                    parts.append(f"          <div class='inline-step'>")
-                    parts.append(f"            <span class='step-type-badge assert'>Assert</span>")
-                    parts.append(f"            <code>{escape_html(assertion)}</code>")
-                    parts.append(f"            <span class='inline-step-target'>-> <code>{escape_html(target)}</code></span>")
-                    if details:
-                        parts.append(f"            <span class='inline-step-details'>({escape_html(details)})</span>")
-                    parts.append(f"          </div>")
+                step_type = "action" if "action" in inner_step else "assert"
+                type_label = "Action" if step_type == "action" else "Assert"
+                action_name = inner_step.get("action") or inner_step.get("assert", "?")
+                target = inner_step.get("id") or ", ".join(inner_step.get("ids", [])) or "-"
+                details = format_step_details_fn(inner_step)
+                parts.append(f"            <tr><td>{j}</td><td><span class='{step_type}'>{type_label}</span></td><td><code>{escape_html(action_name)}</code></td><td><code>{escape_html(target)}</code></td><td>{escape_html(details) if details else ''}</td></tr>")
+            parts.append(f"          </table>")
             parts.append(f"        </div>")
 
         parts.append(f"      </div>")
