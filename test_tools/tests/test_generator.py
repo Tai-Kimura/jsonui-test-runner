@@ -226,5 +226,354 @@ class TestSchemaReference:
                 output_path.unlink()
 
 
+class TestFlowTestHtmlGeneration:
+    """Tests for flow test HTML generation."""
+
+    def setup_method(self):
+        self.generator = DocumentGenerator()
+
+    def test_generate_flow_html_basic(self):
+        """Test basic flow test HTML generation."""
+        test_data = {
+            "type": "flow",
+            "metadata": {
+                "name": "login_flow",
+                "description": "Login flow test"
+            },
+            "platform": "ios",
+            "steps": [
+                {"action": "waitFor", "id": "login_screen", "timeout": 5000},
+                {"action": "tap", "id": "login_button"},
+                {"assert": "visible", "id": "home_screen"}
+            ]
+        }
+
+        import tempfile
+        import json
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.test.json', delete=False) as f:
+            json.dump(test_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            content = self.generator.generate(temp_path, format="html")
+
+            assert "<!DOCTYPE html>" in content
+            assert "Login flow test" in content
+            assert "login_flow" in content
+            assert "Type:</strong> flow" in content
+            assert "Steps:</strong> 3" in content
+            # Check flow step rendering
+            assert "⚡ Action" in content or "Action" in content
+            assert "✓ Assert" in content or "Assert" in content
+        finally:
+            temp_path.unlink()
+
+    def test_generate_flow_html_with_file_references(self):
+        """Test flow test HTML with file references."""
+        test_data = {
+            "type": "flow",
+            "metadata": {"name": "file_ref_flow"},
+            "steps": [
+                {"file": "screens/login", "case": "valid_login"},
+                {"action": "waitFor", "id": "home_screen", "timeout": 5000},
+                {"file": "screens/home", "cases": ["verify_display", "navigate"]}
+            ]
+        }
+
+        import tempfile
+        import json
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.test.json', delete=False) as f:
+            json.dump(test_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            content = self.generator.generate(temp_path, format="html")
+
+            # Check file reference rendering
+            assert "📁 File Reference" in content or "File Reference" in content
+            assert "screens/login" in content
+            assert "valid_login" in content
+            assert "screens/home" in content
+        finally:
+            temp_path.unlink()
+
+    def test_generate_flow_html_with_setup_teardown(self):
+        """Test flow test HTML with setup and teardown."""
+        test_data = {
+            "type": "flow",
+            "metadata": {"name": "setup_teardown_flow"},
+            "setup": [
+                {"action": "waitFor", "id": "launch_screen", "timeout": 5000}
+            ],
+            "steps": [
+                {"action": "tap", "id": "start_button"}
+            ],
+            "teardown": [
+                {"action": "screenshot", "name": "final_state"}
+            ]
+        }
+
+        import tempfile
+        import json
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.test.json', delete=False) as f:
+            json.dump(test_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            content = self.generator.generate(temp_path, format="html")
+
+            assert "Setup" in content
+            assert "Teardown" in content
+            assert "Setup:</strong> 1 steps" in content
+            assert "Teardown:</strong> 1 steps" in content
+        finally:
+            temp_path.unlink()
+
+    def test_generate_flow_html_with_checkpoints(self):
+        """Test flow test HTML with checkpoints."""
+        test_data = {
+            "type": "flow",
+            "metadata": {"name": "checkpoint_flow"},
+            "steps": [
+                {"action": "tap", "id": "login_button"},
+                {"action": "waitFor", "id": "home_screen", "timeout": 5000}
+            ],
+            "checkpoints": [
+                {"name": "After Login", "afterStep": 1, "screenshot": True},
+                {"name": "Flow Complete", "afterStep": 2, "screenshot": False}
+            ]
+        }
+
+        import tempfile
+        import json
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.test.json', delete=False) as f:
+            json.dump(test_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            content = self.generator.generate(temp_path, format="html")
+
+            assert "Checkpoints" in content
+            assert "Checkpoints:</strong> 2" in content
+            assert "After Login" in content
+            assert "Flow Complete" in content
+            # Screenshot icon for checkpoint with screenshot=true
+            assert "📷" in content
+        finally:
+            temp_path.unlink()
+
+    def test_flow_html_sidebar_structure(self):
+        """Test flow test HTML sidebar contains steps and checkpoints."""
+        test_data = {
+            "type": "flow",
+            "metadata": {"name": "sidebar_test"},
+            "steps": [
+                {"file": "screens/login", "case": "valid_login"},
+                {"action": "waitFor", "id": "home"},
+                {"assert": "visible", "id": "title"}
+            ],
+            "checkpoints": [
+                {"name": "login_done", "afterStep": 1}
+            ]
+        }
+
+        import tempfile
+        import json
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.test.json', delete=False) as f:
+            json.dump(test_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            content = self.generator.generate(temp_path, format="html")
+
+            # Check sidebar structure
+            assert "class='sidebar'" in content
+            assert "sidebar-section" in content
+            assert "Steps" in content
+            # Check step icons
+            assert "#step-1" in content
+            assert "#step-2" in content
+            assert "#step-3" in content
+        finally:
+            temp_path.unlink()
+
+
+class TestHtmlDirectoryGeneration:
+    """Tests for HTML directory generation with index."""
+
+    def test_generate_html_directory_basic(self):
+        """Test basic HTML directory generation."""
+        from jsonui_test_cli.generator import generate_html_directory
+        import tempfile
+        import json
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_dir = Path(temp_dir) / "tests"
+            input_dir.mkdir()
+
+            # Create a screen test
+            screen_test = {
+                "type": "screen",
+                "metadata": {"name": "login_test", "description": "Login screen tests"},
+                "cases": [{"name": "initial", "steps": [{"action": "back"}]}]
+            }
+            with open(input_dir / "login.test.json", 'w') as f:
+                json.dump(screen_test, f)
+
+            # Create output directory
+            output_dir = Path(temp_dir) / "html"
+
+            # Generate
+            files = generate_html_directory(input_dir, output_dir, "Test Docs")
+
+            # Check results
+            assert len(files) == 1
+            assert (output_dir / "index.html").exists()
+            assert (output_dir / "screens" / "login.test.html").exists()
+
+            # Check index content
+            index_content = (output_dir / "index.html").read_text()
+            assert "Test Docs" in index_content
+            assert "login_test" in index_content
+            assert "Screen Tests" in index_content
+
+    def test_generate_html_directory_with_flow_tests(self):
+        """Test HTML directory generation with flow tests."""
+        from jsonui_test_cli.generator import generate_html_directory
+        import tempfile
+        import json
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_dir = Path(temp_dir) / "tests"
+            input_dir.mkdir()
+
+            # Create a screen test
+            screen_test = {
+                "type": "screen",
+                "metadata": {"name": "login_test"},
+                "cases": [{"name": "initial", "steps": [{"action": "back"}]}]
+            }
+            with open(input_dir / "login.test.json", 'w') as f:
+                json.dump(screen_test, f)
+
+            # Create a flow test
+            flow_test = {
+                "type": "flow",
+                "metadata": {"name": "login_flow", "description": "Login flow"},
+                "steps": [{"action": "tap", "id": "btn"}]
+            }
+            with open(input_dir / "login_flow.test.json", 'w') as f:
+                json.dump(flow_test, f)
+
+            output_dir = Path(temp_dir) / "html"
+
+            files = generate_html_directory(input_dir, output_dir, "Test Docs")
+
+            assert len(files) == 2
+            assert (output_dir / "screens" / "login.test.html").exists()
+            assert (output_dir / "flows" / "login_flow.test.html").exists()
+
+            # Check index has both categories
+            index_content = (output_dir / "index.html").read_text()
+            assert "Screen Tests" in index_content
+            assert "Flow Tests" in index_content
+            assert "login_test" in index_content
+            assert "login_flow" in index_content
+
+    def test_generate_html_directory_collapsible_categories(self):
+        """Test HTML directory has collapsible categories."""
+        from jsonui_test_cli.generator import generate_html_directory
+        import tempfile
+        import json
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_dir = Path(temp_dir) / "tests"
+            input_dir.mkdir()
+
+            screen_test = {
+                "type": "screen",
+                "metadata": {"name": "test"},
+                "cases": [{"name": "case1", "steps": [{"action": "back"}]}]
+            }
+            with open(input_dir / "test.test.json", 'w') as f:
+                json.dump(screen_test, f)
+
+            output_dir = Path(temp_dir) / "html"
+            generate_html_directory(input_dir, output_dir, "Docs")
+
+            index_content = (output_dir / "index.html").read_text()
+
+            # Check for collapsible structure
+            assert "toggleCategory" in index_content
+            assert "category-header" in index_content
+            assert "category-content" in index_content
+
+    def test_generate_html_directory_sidebar(self):
+        """Test HTML directory index has sidebar navigation."""
+        from jsonui_test_cli.generator import generate_html_directory
+        import tempfile
+        import json
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_dir = Path(temp_dir) / "tests"
+            input_dir.mkdir()
+
+            screen_test = {
+                "type": "screen",
+                "metadata": {"name": "sidebar_test"},
+                "cases": [{"name": "case1", "steps": [{"action": "back"}]}]
+            }
+            with open(input_dir / "test.test.json", 'w') as f:
+                json.dump(screen_test, f)
+
+            output_dir = Path(temp_dir) / "html"
+            generate_html_directory(input_dir, output_dir, "Docs")
+
+            index_content = (output_dir / "index.html").read_text()
+
+            # Check for sidebar
+            assert "class='sidebar'" in index_content
+            assert "sidebar-section" in index_content
+
+    def test_generate_html_directory_summary_stats(self):
+        """Test HTML directory index has summary statistics."""
+        from jsonui_test_cli.generator import generate_html_directory
+        import tempfile
+        import json
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_dir = Path(temp_dir) / "tests"
+            input_dir.mkdir()
+
+            # Create 2 screen tests
+            for i in range(2):
+                screen_test = {
+                    "type": "screen",
+                    "metadata": {"name": f"test_{i}"},
+                    "cases": [
+                        {"name": "case1", "steps": [{"action": "tap", "id": "btn"}]},
+                        {"name": "case2", "steps": [{"action": "back"}]}
+                    ]
+                }
+                with open(input_dir / f"test_{i}.test.json", 'w') as f:
+                    json.dump(screen_test, f)
+
+            output_dir = Path(temp_dir) / "html"
+            generate_html_directory(input_dir, output_dir, "Docs")
+
+            index_content = (output_dir / "index.html").read_text()
+
+            # Check for summary stats
+            assert "summary-value" in index_content
+            assert "Test Files" in index_content
+            assert "Test Cases" in index_content
+            assert "Total Steps" in index_content
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

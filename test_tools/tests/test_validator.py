@@ -336,5 +336,257 @@ class TestCaseValidation:
         assert result.warning_count > 0
 
 
+class TestFlowTestFileReferenceValidation:
+    """Tests for flow test file reference validation."""
+
+    def setup_method(self):
+        self.validator = TestValidator()
+
+    def _make_flow_test(self, steps: list) -> dict:
+        return {
+            "type": "flow",
+            "metadata": {"name": "flow_test"},
+            "steps": steps
+        }
+
+    def test_valid_file_reference_with_case(self):
+        """Test valid file reference with single case."""
+        data = self._make_flow_test([
+            {"file": "screens/login", "case": "valid_login"}
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_valid_file_reference_with_cases(self):
+        """Test valid file reference with multiple cases."""
+        data = self._make_flow_test([
+            {"file": "screens/login", "cases": ["initial_display", "valid_login"]}
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_valid_file_reference_all_cases(self):
+        """Test valid file reference without case (all cases)."""
+        data = self._make_flow_test([
+            {"file": "screens/login"}
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_file_reference_empty_file(self):
+        """Test file reference with empty file fails."""
+        data = self._make_flow_test([
+            {"file": ""}
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("non-empty string" in str(e) for e in result.errors)
+
+    def test_file_reference_both_case_and_cases(self):
+        """Test file reference with both case and cases fails."""
+        data = self._make_flow_test([
+            {"file": "screens/login", "case": "one", "cases": ["two", "three"]}
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("both 'case' and 'cases'" in str(e) for e in result.errors)
+
+    def test_file_reference_empty_case(self):
+        """Test file reference with empty case fails."""
+        data = self._make_flow_test([
+            {"file": "screens/login", "case": ""}
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+
+    def test_file_reference_empty_cases_array(self):
+        """Test file reference with empty cases array fails."""
+        data = self._make_flow_test([
+            {"file": "screens/login", "cases": []}
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("non-empty array" in str(e) for e in result.errors)
+
+    def test_file_reference_cases_with_empty_string(self):
+        """Test file reference with empty string in cases fails."""
+        data = self._make_flow_test([
+            {"file": "screens/login", "cases": ["valid_login", ""]}
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+
+    def test_file_reference_unknown_key_warning(self):
+        """Test file reference with unknown key produces warning."""
+        data = self._make_flow_test([
+            {"file": "screens/login", "case": "valid_login", "unknown_key": "value"}
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+        assert result.warning_count > 0
+
+    def test_file_reference_not_allowed_in_screen_test(self):
+        """Test file reference in screen test fails."""
+        data = {
+            "type": "screen",
+            "metadata": {"name": "test"},
+            "cases": [
+                {"name": "case1", "steps": [{"file": "screens/login"}]}
+            ]
+        }
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("only allowed in flow tests" in str(e) for e in result.errors)
+
+    def test_mixed_file_ref_and_inline_steps(self):
+        """Test flow with mixed file references and inline steps."""
+        data = self._make_flow_test([
+            {"file": "screens/login", "case": "valid_login"},
+            {"action": "waitFor", "id": "home_screen", "timeout": 5000},
+            {"file": "screens/home", "cases": ["verify_display", "navigate_to_profile"]},
+            {"assert": "visible", "id": "profile_title"}
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+
+class TestFlowTestSetupTeardown:
+    """Tests for flow test setup and teardown validation."""
+
+    def setup_method(self):
+        self.validator = TestValidator()
+
+    def test_flow_with_setup(self):
+        """Test flow test with setup section."""
+        data = {
+            "type": "flow",
+            "metadata": {"name": "flow_with_setup"},
+            "setup": [
+                {"action": "waitFor", "id": "launch_screen", "timeout": 5000}
+            ],
+            "steps": [
+                {"action": "tap", "id": "start_button"}
+            ]
+        }
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_flow_with_teardown(self):
+        """Test flow test with teardown section."""
+        data = {
+            "type": "flow",
+            "metadata": {"name": "flow_with_teardown"},
+            "steps": [
+                {"action": "tap", "id": "start_button"}
+            ],
+            "teardown": [
+                {"action": "screenshot", "name": "final_state"}
+            ]
+        }
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_flow_with_checkpoints(self):
+        """Test flow test with checkpoints."""
+        data = {
+            "type": "flow",
+            "metadata": {"name": "flow_with_checkpoints"},
+            "steps": [
+                {"action": "tap", "id": "login_button"},
+                {"action": "waitFor", "id": "home_screen", "timeout": 5000}
+            ],
+            "checkpoints": [
+                {"name": "after_login", "afterStep": 1, "screenshot": True}
+            ]
+        }
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_flow_empty_steps_warning(self):
+        """Test flow test with empty steps produces warning."""
+        data = {
+            "type": "flow",
+            "metadata": {"name": "empty_flow"},
+            "steps": []
+        }
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+        assert result.warning_count > 0
+
+
+class TestDescriptionFileValidation:
+    """Tests for description file validation."""
+
+    def setup_method(self):
+        self.validator = TestValidator()
+
+    def test_valid_description_file(self):
+        """Test valid description file."""
+        import tempfile
+        import json
+
+        desc_data = {
+            "case_name": "initial_display",
+            "summary": "Verify initial screen state",
+            "preconditions": ["User is logged in", "App is launched"],
+            "test_procedure": ["Open the screen", "Check elements"],
+            "expected_results": ["Title is visible", "Button is enabled"],
+            "notes": "Additional notes"
+        }
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(desc_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            result = self.validator.validate_file(temp_path)
+            assert result.is_valid
+        finally:
+            temp_path.unlink()
+
+    def test_description_missing_case_name(self):
+        """Test description file without case_name fails."""
+        import tempfile
+        import json
+
+        desc_data = {
+            "summary": "Some summary"
+        }
+
+        # Create in descriptions folder to trigger description validation
+        with tempfile.TemporaryDirectory() as temp_dir:
+            desc_dir = Path(temp_dir) / "descriptions"
+            desc_dir.mkdir()
+            desc_file = desc_dir / "test.json"
+
+            with open(desc_file, 'w') as f:
+                json.dump(desc_data, f)
+
+            result = self.validator.validate_file(desc_file)
+            assert not result.is_valid
+            assert any("case_name" in str(e) for e in result.errors)
+
+    def test_description_invalid_preconditions(self):
+        """Test description file with invalid preconditions."""
+        import tempfile
+        import json
+
+        desc_data = {
+            "case_name": "test_case",
+            "preconditions": "not an array"
+        }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            desc_dir = Path(temp_dir) / "descriptions"
+            desc_dir.mkdir()
+            desc_file = desc_dir / "test.json"
+
+            with open(desc_file, 'w') as f:
+                json.dump(desc_data, f)
+
+            result = self.validator.validate_file(desc_file)
+            assert not result.is_valid
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
