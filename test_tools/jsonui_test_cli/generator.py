@@ -246,6 +246,23 @@ class DocumentGenerator:
                 self._current_test_path
             )
 
+    def _find_tests_root(self) -> Path:
+        """Find the tests root directory (parent of flows/ or screens/)."""
+        if not self._test_file_path:
+            return Path(".")
+
+        base_dir = self._test_file_path.parent
+
+        # Check if we're in flows/ or screens/ directly
+        if base_dir.name == "flows" or base_dir.name == "screens":
+            return base_dir.parent
+
+        # Check if we're in a subdirectory of flows/ or screens/
+        if base_dir.parent.name == "flows" or base_dir.parent.name == "screens":
+            return base_dir.parent.parent
+
+        return base_dir.parent
+
     def _render_referenced_cases(self, file_ref: str, case_name: str | None, cases: list | None) -> list[str]:
         """
         Load referenced test file and render its cases.
@@ -261,15 +278,22 @@ class DocumentGenerator:
         if not self._test_file_path:
             return []
 
-        # Resolve the file path
-        # Priority: ../screens/ (sibling directory) first, then same directory
+        # Find tests root directory
         base_dir = self._test_file_path.parent
-        parent_dir = base_dir.parent
+        tests_root = self._find_tests_root()
+
         candidates = [
-            parent_dir / "screens" / file_ref / f"{file_ref}.test.json",
-            parent_dir / "screens" / file_ref / f"{file_ref}.json",
-            parent_dir / "screens" / f"{file_ref}.test.json",
-            parent_dir / "screens" / f"{file_ref}.json",
+            # screens/{file_ref}/{file_ref}.test.json (subdirectory structure)
+            tests_root / "screens" / file_ref / f"{file_ref}.test.json",
+            tests_root / "screens" / file_ref / f"{file_ref}.json",
+            # screens/{file_ref}.test.json (flat structure)
+            tests_root / "screens" / f"{file_ref}.test.json",
+            tests_root / "screens" / f"{file_ref}.json",
+            # flows/{file_ref}/{file_ref}.test.json (subdirectory structure)
+            tests_root / "flows" / file_ref / f"{file_ref}.test.json",
+            # flows/{file_ref}.test.json (flat structure)
+            tests_root / "flows" / f"{file_ref}.test.json",
+            # Same directory as current test
             base_dir / f"{file_ref}.test.json",
             base_dir / f"{file_ref}.json",
             base_dir / file_ref,
@@ -374,15 +398,22 @@ class DocumentGenerator:
         if not self._test_file_path:
             return file_ref.split("/")[-1] if "/" in file_ref else file_ref
 
-        # Resolve the file path
-        # Priority: ../screens/ (sibling directory) first, then same directory
+        # Find tests root directory and resolve file
         base_dir = self._test_file_path.parent
-        parent_dir = base_dir.parent
+        tests_root = self._find_tests_root()
+
         candidates = [
-            parent_dir / "screens" / file_ref / f"{file_ref}.test.json",
-            parent_dir / "screens" / file_ref / f"{file_ref}.json",
-            parent_dir / "screens" / f"{file_ref}.test.json",
-            parent_dir / "screens" / f"{file_ref}.json",
+            # screens/{file_ref}/{file_ref}.test.json (subdirectory structure)
+            tests_root / "screens" / file_ref / f"{file_ref}.test.json",
+            tests_root / "screens" / file_ref / f"{file_ref}.json",
+            # screens/{file_ref}.test.json (flat structure)
+            tests_root / "screens" / f"{file_ref}.test.json",
+            tests_root / "screens" / f"{file_ref}.json",
+            # flows/{file_ref}/{file_ref}.test.json (subdirectory structure)
+            tests_root / "flows" / file_ref / f"{file_ref}.test.json",
+            # flows/{file_ref}.test.json (flat structure)
+            tests_root / "flows" / f"{file_ref}.test.json",
+            # Same directory as current test
             base_dir / f"{file_ref}.test.json",
             base_dir / f"{file_ref}.json",
             base_dir / file_ref,
