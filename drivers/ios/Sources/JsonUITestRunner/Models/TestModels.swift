@@ -43,7 +43,7 @@ public struct TestCase: Codable {
 
 public struct FlowTest: Codable {
     public let type: String
-    public let sources: [FlowTestSource]
+    public let sources: [FlowTestSource]?  // Now optional (not needed when using file references)
     public let metadata: TestMetadata
     public let platform: PlatformTarget?
     public let initialState: FlowInitialState?
@@ -65,7 +65,8 @@ public struct FlowInitialState: Codable {
 }
 
 public struct FlowTestStep: Codable {
-    public let screen: String
+    // For inline steps
+    public let screen: String?
     public let action: String?
     public let assert: String?
     public let id: String?
@@ -84,6 +85,21 @@ public struct FlowTestStep: Codable {
     public let button: String?
     public let label: String?
     public let index: Int?
+
+    // For file reference steps
+    public let file: String?
+    public let `case`: String?
+    public let cases: [String]?
+
+    /// Whether this is a file reference step
+    public var isFileReference: Bool {
+        file != nil
+    }
+
+    /// Whether this is an inline action/assertion step
+    public var isInlineStep: Bool {
+        screen != nil && (action != nil || assert != nil)
+    }
 }
 
 public struct Checkpoint: Codable {

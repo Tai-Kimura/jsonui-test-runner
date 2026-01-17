@@ -6,6 +6,8 @@ public enum TestLoaderError: Error, LocalizedError {
     case invalidJSON(path: String, error: String)
     case unsupportedTestType(type: String)
     case bundleResourceNotFound(name: String)
+    case caseNotFound(caseName: String, file: String)
+    case notAScreenTest(file: String)
 
     public var errorDescription: String? {
         switch self {
@@ -17,6 +19,10 @@ public enum TestLoaderError: Error, LocalizedError {
             return "Unsupported test type: \(type)"
         case .bundleResourceNotFound(let name):
             return "Resource not found in bundle: \(name)"
+        case .caseNotFound(let caseName, let file):
+            return "Test case '\(caseName)' not found in file: \(file)"
+        case .notAScreenTest(let file):
+            return "File reference must point to a screen test: \(file)"
         }
     }
 }
@@ -40,9 +46,15 @@ public enum LoadedTest {
 public class TestLoader {
 
     private let decoder: JSONDecoder
+    private var basePath: URL?
 
     public init() {
         decoder = JSONDecoder()
+    }
+
+    /// Set base path for resolving relative file references
+    public func setBasePath(_ url: URL) {
+        basePath = url.deletingLastPathComponent()
     }
 
     /// Load a test from a file path
@@ -56,6 +68,9 @@ public class TestLoader {
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw TestLoaderError.fileNotFound(path: url.path)
         }
+
+        // Store base path for file reference resolution
+        basePath = url.deletingLastPathComponent()
 
         do {
             let data = try Data(contentsOf: url)
@@ -174,5 +189,76 @@ extension TestLoader {
 
             return !Set(tags).isDisjoint(with: Set(existingTags))
         }
+    }
+}
+
+// MARK: - File Reference Resolution
+
+extension TestLoader {
+
+    /// Resolve a file reference to a ScreenTest
+    public func resolveFileReference(_ fileRef: String) throws -> ScreenTest {
+        let url = try resolveFileReferenceURL(fileRef)
+        let loadedTest = try load(from: url)
+
+        guard case .screen(let screenTest) = loadedTest else {
+            throw TestLoaderError.notAScreenTest(file: fileRef)
+        }
+
+        return screenTest
+    }
+
+    /// Resolve a file reference to test cases
+    public func resolveFileReferenceCases(_ step: FlowTestStep) throws -> [TestCase] {
+        guard let fileRef = step.file else {
+            return []
+        }
+
+        let screenTest = try resolveFileReference(fileRef)
+
+        // If specific case is requested
+        if let caseName = step.case {
+            guard let testCase = screenTest.cases.first(where: { $0.name == caseName }) else {
+                throw TestLoaderError.caseNotFound(caseName: caseName, file: fileRef)
+            }
+            return [testCase]
+        }
+
+        // If specific cases are requested
+        if let caseNames = step.cases, !caseNames.isEmpty {
+            var result: [TestCase] = []
+            for caseName in caseNames {
+                guard let testCase = screenTest.cases.first(where: { $0.name == caseName }) else {
+                    throw TestLoaderError.caseNotFound(caseName: caseName, file: fileRef)
+                }
+                result.append(testCase)
+            }
+            return result
+        }
+
+        // Return all cases if no specific case requested
+        return screenTest.cases
+    }
+
+    /// Resolve a file reference path to a URL
+    private func resolveFileReferenceURL(_ fileRef: String) throws -> URL {
+        guard let base = basePath else {
+            throw TestLoaderError.fileNotFound(path: fileRef)
+        }
+
+        // Try different file extensions
+        let candidates = [
+            base.appendingPathComponent("\(fileRef).test.json"),
+            base.appendingPathComponent("\(fileRef).json"),
+            base.appendingPathComponent(fileRef)
+        ]
+
+        for candidate in candidates {
+            if FileManager.default.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+        }
+
+        throw TestLoaderError.fileNotFound(path: fileRef)
     }
 }

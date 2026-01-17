@@ -6,7 +6,29 @@
   "type": "object",
 
   "definitions": {
-    "flowStep": {
+    "fileStep": {
+      "type": "object",
+      "description": "Reference to a screen test file to execute",
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to screen test file (e.g., 'screens/login' resolves to 'screens/login.test.json')"
+        },
+        "case": {
+          "type": "string",
+          "description": "Specific test case name to run (optional, runs all cases if not specified)"
+        },
+        "cases": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of test case names to run (optional)"
+        }
+      },
+      "required": ["file"],
+      "additionalProperties": false
+    },
+    "inlineStep": {
       "allOf": [
         {
           "type": "object",
@@ -25,6 +47,12 @@
             { "$ref": "actions.schema.json#/definitions/assertion" }
           ]
         }
+      ]
+    },
+    "flowStep": {
+      "oneOf": [
+        { "$ref": "#/definitions/fileStep" },
+        { "$ref": "#/definitions/inlineStep" }
       ]
     }
   },
@@ -187,6 +215,6 @@
     }
   },
 
-  "required": ["type", "sources", "metadata", "steps"],
+  "required": ["type", "metadata", "steps"],
   "additionalProperties": false
 }

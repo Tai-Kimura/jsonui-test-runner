@@ -53,6 +53,7 @@ public class JsonUITestRunner {
     private let assertionExecutor: AssertionExecutor
     private let config: TestRunnerConfig
     private var app: XCUIApplication
+    private var testLoader: TestLoader?
 
     public init(
         app: XCUIApplication,
@@ -63,6 +64,11 @@ public class JsonUITestRunner {
         self.config = config
         self.actionExecutor = XCUITestActionExecutor(platform: config.platform)
         self.assertionExecutor = XCUITestAssertionExecutor(stateProvider: stateProvider)
+    }
+
+    /// Set a test loader for file reference resolution
+    public func setTestLoader(_ loader: TestLoader) {
+        self.testLoader = loader
     }
 
     // MARK: - Screen Test Execution
@@ -243,10 +249,42 @@ public class JsonUITestRunner {
     }
 
     private func executeFlowStep(_ step: FlowTestStep) throws {
+        // Handle file reference steps
+        if step.isFileReference {
+            try executeFileReferenceStep(step)
+            return
+        }
+
+        // Handle inline steps
         if step.action != nil {
             try actionExecutor.execute(flowStep: step, in: app)
         } else if step.assert != nil {
             try assertionExecutor.execute(flowStep: step, in: app)
+        }
+    }
+
+    private func executeFileReferenceStep(_ step: FlowTestStep) throws {
+        guard let loader = testLoader else {
+            throw TestLoaderError.fileNotFound(path: step.file ?? "unknown")
+        }
+
+        let testCases = try loader.resolveFileReferenceCases(step)
+
+        for testCase in testCases {
+            // Skip if marked to skip
+            if testCase.skip == true {
+                continue
+            }
+
+            // Check platform filter
+            if let platform = testCase.platform, !platform.includes(config.platform) {
+                continue
+            }
+
+            // Execute each step in the test case
+            for testStep in testCase.steps {
+                try executeStep(testStep)
+            }
         }
     }
 }
