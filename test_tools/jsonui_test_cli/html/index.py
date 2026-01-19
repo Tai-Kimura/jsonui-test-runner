@@ -13,7 +13,8 @@ def generate_index_html(
     output_dir: Path,
     files: list[dict],
     title: str,
-    has_mermaid_diagram: bool = False
+    has_mermaid_diagram: bool = False,
+    document_files: list[dict] | None = None
 ) -> None:
     """
     Generate index.html with collapsible categories and sidebar navigation.
@@ -23,6 +24,7 @@ def generate_index_html(
         files: List of generated file info dicts
         title: Page title
         has_mermaid_diagram: Whether a Mermaid diagram was generated
+        document_files: List of document file dicts
     """
     screen_files = [f for f in files if f['type'] == 'screen']
     flow_files = [f for f in files if f['type'] == 'flow']
@@ -30,11 +32,12 @@ def generate_index_html(
 
     screen_count = len(screen_files)
     flow_count = len(flow_files)
+    doc_count = len(document_files) if document_files else 0
     total_cases = sum(f['case_count'] for f in files)
     total_steps = sum(f['step_count'] for f in files)
 
     html_parts = _get_html_header(title)
-    html_parts.extend(generate_index_sidebar(title, flow_files, screen_files, has_mermaid_diagram))
+    html_parts.extend(generate_index_sidebar(title, flow_files, screen_files, has_mermaid_diagram, document_files))
 
     # Main content
     html_parts.append("  <main class='main-content'>")
@@ -92,11 +95,6 @@ def generate_index_html(
             html_parts.extend([
                 "          <li class='test-item flow'>",
                 f"            <a href='{f['path']}' class='test-name'>{escape_html(f['name'])}</a>",
-            ])
-            # Add document link if available
-            if f.get('document'):
-                html_parts.append(f"            <a href='{f['document']}' class='doc-link' title='View specification document'>📄</a>")
-            html_parts.extend([
                 "            <div class='test-meta'>",
                 f"              <span class='badge badge-platform'>{f['platform']}</span>",
                 f"              {f['step_count']} steps",
@@ -125,11 +123,6 @@ def generate_index_html(
             html_parts.extend([
                 "          <li class='test-item screen'>",
                 f"            <a href='{f['path']}' class='test-name'>{escape_html(f['name'])}</a>",
-            ])
-            # Add document link if available
-            if f.get('document'):
-                html_parts.append(f"            <a href='{f['document']}' class='doc-link' title='View specification document'>📄</a>")
-            html_parts.extend([
                 "            <div class='test-meta'>",
                 f"              <span class='badge badge-platform'>{f['platform']}</span>",
                 f"              {f['case_count']} cases, {f['step_count']} steps",
@@ -138,6 +131,28 @@ def generate_index_html(
             if f['description']:
                 html_parts.append(f"            <div class='test-description'>{escape_html(f['description'])}</div>")
             html_parts.append("          </li>")
+        html_parts.extend([
+            "        </ul>",
+            "      </div>",
+            "    </div>",
+        ])
+
+    # Documents category (collapsible, starts collapsed)
+    if document_files:
+        html_parts.extend([
+            "    <div class='category'>",
+            "      <div class='category-header collapsed' id='documents-header' onclick=\"toggleCategory('documents')\">",
+            f"        <h2><span class='arrow'>▼</span> Documents <span class='category-badge doc'>{doc_count}</span></h2>",
+            "      </div>",
+            "      <div class='category-content collapsed' id='documents-content'>",
+            "        <ul class='test-list'>",
+        ])
+        for d in document_files:
+            html_parts.extend([
+                "          <li class='test-item doc'>",
+                f"            <a href='{d['path']}' class='test-name'>{escape_html(d['name'])}</a>",
+                "          </li>",
+            ])
         html_parts.extend([
             "        </ul>",
             "      </div>",

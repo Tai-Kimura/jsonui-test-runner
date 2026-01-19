@@ -634,10 +634,20 @@ def generate_html_directory(
         except Exception as e:
             print(f"  Error processing {test_file}: {e}")
 
+    # Build documents list from file_infos that have document paths
+    document_files = []
+    for f in file_infos:
+        if f.get('document'):
+            document_files.append({
+                'name': f['name'],
+                'path': f['document'],  # Path to document page
+            })
+
     # Build navigation data for sidebar
     all_tests_nav = {
-        'screens': [{'name': f['name'], 'path': str(f['path']), 'document': f.get('document')} for f in file_infos if f['type'] == 'screen'],
-        'flows': [{'name': f['name'], 'path': str(f['path']), 'document': f.get('document')} for f in file_infos if f['type'] == 'flow'],
+        'screens': [{'name': f['name'], 'path': str(f['path'])} for f in file_infos if f['type'] == 'screen'],
+        'flows': [{'name': f['name'], 'path': str(f['path'])} for f in file_infos if f['type'] == 'flow'],
+        'documents': document_files,
     }
 
     # Second pass: generate HTML with navigation
@@ -692,7 +702,7 @@ def generate_html_directory(
             print(f"  Warning: Could not generate Mermaid diagram: {e}")
 
     # Generate index.html
-    generate_index_html(output_path, generated_files, title, mermaid_generated)
+    generate_index_html(output_path, generated_files, title, mermaid_generated, document_files)
 
     # Generate document pages (HTML with sidebar) for each document
     _generate_document_pages(input_path, output_path, generated_files, all_tests_nav)
@@ -708,6 +718,8 @@ def _generate_document_pages(
 ) -> None:
     """
     Generate document pages with sidebar for all documents referenced in test files.
+
+    Embeds body content directly with Mermaid CDN support (no iframe).
 
     Args:
         input_path: Input directory containing test files
@@ -725,13 +737,7 @@ def _generate_document_pages(
     if not documents_to_process:
         return
 
-    print(f"  Generating document pages...")
-
-    # Create docs output directory
-    docs_output = output_path / "docs"
-    docs_output.mkdir(parents=True, exist_ok=True)
-
-    import shutil
+    print("  Generating document pages...")
 
     for doc_path, test_name in documents_to_process.items():
         try:
@@ -750,32 +756,13 @@ def _generate_document_pages(
             output_doc_path = output_path / rel_doc_path
             output_doc_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # For HTML files with potential scripts/styles, use iframe approach:
-            # 1. Copy original to *_source.html
-            # 2. Generate wrapper with sidebar at original name
-            is_html = source_path.suffix.lower() in ['.html', '.htm']
-            if is_html:
-                # Copy original document to *_source.html
-                source_filename = f"{output_doc_path.stem}_source{output_doc_path.suffix}"
-                source_copy_path = output_doc_path.parent / source_filename
-                shutil.copy2(source_path, source_copy_path)
-
-                # Generate wrapper that iframes the source
-                html_content = generate_document_html(
-                    source_path=source_path,
-                    title=test_name,
-                    all_tests_nav=all_tests_nav,
-                    current_doc_path=doc_path,
-                    iframe_src=source_filename  # Just the filename, same directory
-                )
-            else:
-                # For markdown or other formats, embed directly
-                html_content = generate_document_html(
-                    source_path=source_path,
-                    title=test_name,
-                    all_tests_nav=all_tests_nav,
-                    current_doc_path=doc_path
-                )
+            # Generate document page with embedded body content and Mermaid CDN
+            html_content = generate_document_html(
+                source_path=source_path,
+                title=test_name,
+                all_tests_nav=all_tests_nav,
+                current_doc_path=doc_path
+            )
 
             with open(output_doc_path, 'w', encoding='utf-8') as f:
                 f.write(html_content)

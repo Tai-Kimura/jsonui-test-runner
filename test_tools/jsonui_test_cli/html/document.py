@@ -39,8 +39,7 @@ def generate_document_sidebar(
         parts.append("      <div class='sidebar-list collapsed' id='flows-list'>")
         parts.append("        <ul>")
         for f in flows:
-            doc_link = f"<a href='../{f['document']}' class='doc-link' title='View specification document'>📄</a>" if f.get('document') else ""
-            parts.append(f"          <li><a href='../{f['path']}' class='nav-link' title='{escape_html(f['name'])}'>{escape_html(f['name'])}</a>{doc_link}</li>")
+            parts.append(f"          <li><a href='../{f['path']}' class='nav-link' title='{escape_html(f['name'])}'>{escape_html(f['name'])}</a></li>")
         parts.append("        </ul>")
         parts.append("      </div>")
         parts.append("    </div>")
@@ -53,10 +52,22 @@ def generate_document_sidebar(
         parts.append("      <div class='sidebar-list collapsed' id='screens-list'>")
         parts.append("        <ul>")
         for s in screens:
-            is_current = current_doc_path and s.get('document') == current_doc_path
+            parts.append(f"          <li><a href='../{s['path']}' class='nav-link' title='{escape_html(s['name'])}'>{escape_html(s['name'])}</a></li>")
+        parts.append("        </ul>")
+        parts.append("      </div>")
+        parts.append("    </div>")
+
+    # Documents navigation (collapsible, collapsed by default)
+    if all_tests_nav and all_tests_nav.get('documents'):
+        documents = all_tests_nav['documents']
+        parts.append("    <div class='sidebar-section'>")
+        parts.append(f"      <div class='sidebar-title doc collapsed' id='documents-title' onclick=\"toggleSection('documents')\"><span class='arrow'>▼</span> Documents <span class='count'>{len(documents)}</span></div>")
+        parts.append("      <div class='sidebar-list collapsed' id='documents-list'>")
+        parts.append("        <ul>")
+        for d in documents:
+            is_current = current_doc_path and d['path'] == current_doc_path
             current_class = " current" if is_current else ""
-            doc_link = f"<a href='../{s['document']}' class='doc-link{current_class}' title='View specification document'>📄</a>" if s.get('document') else ""
-            parts.append(f"          <li><a href='../{s['path']}' class='nav-link' title='{escape_html(s['name'])}'>{escape_html(s['name'])}</a>{doc_link}</li>")
+            parts.append(f"          <li><a href='../{d['path']}' class='nav-link{current_class}' title='{escape_html(d['name'])}'>{escape_html(d['name'])}</a></li>")
         parts.append("        </ul>")
         parts.append("      </div>")
         parts.append("    </div>")
@@ -115,18 +126,18 @@ def generate_document_html(
     source_path: Path,
     title: str | None = None,
     all_tests_nav: dict | None = None,
-    current_doc_path: str | None = None,
-    iframe_src: str | None = None
+    current_doc_path: str | None = None
 ) -> str:
     """
     Generate HTML documentation page with sidebar from source document.
 
+    Embeds body content directly with Mermaid CDN for diagram support.
+
     Args:
         source_path: Path to the source HTML/MD document
         title: Optional title override
-        all_tests_nav: Navigation data {'screens': [...], 'flows': [...]}
+        all_tests_nav: Navigation data {'screens': [...], 'flows': [...], 'documents': [...]}
         current_doc_path: Current document's relative path
-        iframe_src: If provided, embed using iframe with this src (for HTML with scripts/styles)
 
     Returns:
         Complete HTML string with sidebar
@@ -146,11 +157,6 @@ def generate_document_html(
         body_content = _convert_markdown_to_html(source_content)
         doc_title = title or source_path.stem.replace('_', ' ').title()
         original_styles = ""
-    elif iframe_src:
-        # For iframe mode, we only need the title
-        doc_title = title or _extract_title_from_html(source_content)
-        body_content = ""
-        original_styles = ""
     else:
         # Extract parts from HTML for embedding
         doc_title = title or _extract_title_from_html(source_content)
@@ -158,31 +164,35 @@ def generate_document_html(
         original_styles = _extract_head_styles(source_content)
 
     # Build HTML with sidebar
-    use_iframe = bool(iframe_src) and not is_markdown
-    html_parts = _get_html_header(doc_title, original_styles, use_iframe)
+    html_parts = _get_html_header(doc_title, original_styles)
     html_parts.extend(generate_document_sidebar(doc_title, all_tests_nav, current_doc_path))
 
     # Main content wrapper
     html_parts.append("  <main class='main-content document-content'>")
-
-    if use_iframe:
-        # Use iframe to embed the original HTML document (preserves all scripts/styles)
-        html_parts.append(f"    <iframe class='document-iframe' src='{iframe_src}' title='{escape_html(doc_title)}'></iframe>")
-    else:
-        html_parts.append(f"    <div class='document-body'>")
-        html_parts.append(body_content)
-        html_parts.append("    </div>")
-
+    html_parts.append("    <div class='document-body'>")
+    html_parts.append(body_content)
+    html_parts.append("    </div>")
     html_parts.append("  </main>")
 
-    # Close HTML
+    # Close HTML with Mermaid initialization
     html_parts.extend(get_toggle_script())
+    html_parts.extend(_get_mermaid_script())
     html_parts.extend([
         "</body>",
         "</html>"
     ])
 
     return '\n'.join(html_parts)
+
+
+def _get_mermaid_script() -> list[str]:
+    """Get Mermaid CDN script and initialization."""
+    return [
+        "  <script src='https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js'></script>",
+        "  <script>",
+        "    mermaid.initialize({ startOnLoad: true, theme: 'default' });",
+        "  </script>",
+    ]
 
 
 def _convert_markdown_to_html(md_content: str) -> str:
@@ -290,7 +300,7 @@ def _process_inline_markdown(text: str) -> str:
     return text
 
 
-def _get_html_header(title: str, additional_styles: str = "", use_iframe: bool = False) -> list[str]:
+def _get_html_header(title: str, additional_styles: str = "") -> list[str]:
     """Generate HTML header with styles."""
     parts = [
         "<!DOCTYPE html>",
@@ -324,15 +334,8 @@ def _get_html_header(title: str, additional_styles: str = "", use_iframe: bool =
         "    .document-body img { max-width: 100%; height: auto; }",
         "    .error { color: #d32f2f; background: #ffebee; padding: 15px; border-radius: 5px; }",
     ])
-    # Add iframe styles if needed
-    if use_iframe:
-        parts.extend([
-            "    /* Iframe styles for embedded documents */",
-            "    .document-content { padding: 0; height: calc(100vh - 20px); }",
-            "    .document-iframe { width: 100%; height: 100%; border: none; background: #fff; }",
-        ])
     if additional_styles:
-        parts.append(f"    /* Original document styles */")
+        parts.append("    /* Original document styles */")
         parts.append(f"    {additional_styles}")
     parts.append("  </style>")
     parts.extend([
