@@ -215,6 +215,17 @@ def _render_flow_step(
         else:
             parts.append(f"        <div class='step-detail'><strong>Cases:</strong> <em>all cases</em></div>")
 
+        # Display args if present
+        step_args = step.get("args", {})
+        if step_args:
+            parts.append(f"        <div class='step-args'>")
+            parts.append(f"          <strong>Args (Override):</strong>")
+            parts.append(f"          <ul>")
+            for arg_key, arg_value in step_args.items():
+                parts.append(f"            <li><code>@{{{arg_key}}}</code> = <code>{escape_html(str(arg_value))}</code></li>")
+            parts.append(f"          </ul>")
+            parts.append(f"        </div>")
+
         # Load referenced file and show case details
         ref_cases_html = render_referenced_cases_fn(file_ref, case_name, cases)
         if ref_cases_html:

@@ -208,20 +208,21 @@ extension TestLoader {
         return screenTest
     }
 
-    /// Resolve a file reference to test cases
+    /// Resolve a file reference to test cases with args substitution
     public func resolveFileReferenceCases(_ step: FlowTestStep) throws -> [TestCase] {
         guard let fileRef = step.file else {
             return []
         }
 
         let screenTest = try resolveFileReference(fileRef)
+        let flowArgs = step.args ?? [:]
 
         // If specific case is requested
         if let caseName = step.case {
             guard let testCase = screenTest.cases.first(where: { $0.name == caseName }) else {
                 throw TestLoaderError.caseNotFound(caseName: caseName, file: fileRef)
             }
-            return [testCase]
+            return [applyArgsSubstitution(to: testCase, flowArgs: flowArgs)]
         }
 
         // If specific cases are requested
@@ -231,13 +232,132 @@ extension TestLoader {
                 guard let testCase = screenTest.cases.first(where: { $0.name == caseName }) else {
                     throw TestLoaderError.caseNotFound(caseName: caseName, file: fileRef)
                 }
-                result.append(testCase)
+                result.append(applyArgsSubstitution(to: testCase, flowArgs: flowArgs))
             }
             return result
         }
 
         // Return all cases if no specific case requested
-        return screenTest.cases
+        return screenTest.cases.map { applyArgsSubstitution(to: $0, flowArgs: flowArgs) }
+    }
+
+    /// Apply args substitution to a test case
+    /// Merges screen default args with flow override args, then substitutes @{varName} placeholders
+    public func applyArgsSubstitution(to testCase: TestCase, flowArgs: [String: AnyCodable] = [:]) -> TestCase {
+        // Merge screen default args with flow override args
+        var mergedArgs: [String: Any] = [:]
+        if let screenArgs = testCase.args {
+            for (key, value) in screenArgs {
+                mergedArgs[key] = value.value
+            }
+        }
+        for (key, value) in flowArgs {
+            mergedArgs[key] = value.value
+        }
+
+        // If no args, return original test case
+        if mergedArgs.isEmpty {
+            return testCase
+        }
+
+        // Apply substitution to steps
+        let substitutedSteps = testCase.steps.map { substituteArgs(in: $0, args: mergedArgs) }
+
+        // Create new TestCase with substituted steps
+        return TestCase(
+            name: testCase.name,
+            description: testCase.description,
+            skip: testCase.skip,
+            platform: testCase.platform,
+            initialState: testCase.initialState,
+            steps: substitutedSteps,
+            args: testCase.args
+        )
+    }
+
+    /// Substitute @{varName} placeholders in a TestStep
+    private func substituteArgs(in step: TestStep, args: [String: Any]) -> TestStep {
+        return TestStep(
+            action: step.action,
+            assert: step.assert,
+            id: substituteArgsInString(step.id, args: args),
+            ids: step.ids?.map { substituteArgsInString($0, args: args) ?? $0 },
+            text: substituteArgsInString(step.text, args: args),
+            value: substituteArgsInString(step.value, args: args),
+            direction: step.direction,
+            duration: step.duration,
+            timeout: step.timeout,
+            ms: step.ms,
+            name: step.name,
+            equals: substituteArgsInAnyCodable(step.equals, args: args),
+            contains: substituteArgsInString(step.contains, args: args),
+            path: step.path,
+            amount: step.amount,
+            button: substituteArgsInString(step.button, args: args),
+            label: substituteArgsInString(step.label, args: args),
+            index: step.index
+        )
+    }
+
+    /// Substitute @{varName} placeholders in an optional string
+    private func substituteArgsInString(_ string: String?, args: [String: Any]) -> String? {
+        guard let string = string else { return nil }
+        return substituteArgsInString(string, args: args)
+    }
+
+    /// Substitute @{varName} placeholders in a string
+    private func substituteArgsInString(_ string: String, args: [String: Any]) -> String {
+        var result = string
+        // Pattern: @{varName}
+        let pattern = #"@\{([^}]+)\}"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return string
+        }
+
+        let range = NSRange(string.startIndex..<string.endIndex, in: string)
+        let matches = regex.matches(in: string, range: range)
+
+        // Replace from end to start to preserve indices
+        for match in matches.reversed() {
+            guard let fullRange = Range(match.range, in: result),
+                  let varNameRange = Range(match.range(at: 1), in: result) else {
+                continue
+            }
+
+            let varName = String(result[varNameRange])
+            if let value = args[varName] {
+                let replacement = stringValue(from: value)
+                result.replaceSubrange(fullRange, with: replacement)
+            }
+        }
+
+        return result
+    }
+
+    /// Substitute @{varName} placeholders in AnyCodable (only for string values)
+    private func substituteArgsInAnyCodable(_ anyCodable: AnyCodable?, args: [String: Any]) -> AnyCodable? {
+        guard let anyCodable = anyCodable else { return nil }
+        if let stringValue = anyCodable.stringValue {
+            let substituted = substituteArgsInString(stringValue, args: args)
+            return AnyCodable(substituted)
+        }
+        return anyCodable
+    }
+
+    /// Convert Any value to String for substitution
+    private func stringValue(from value: Any) -> String {
+        switch value {
+        case let string as String:
+            return string
+        case let int as Int:
+            return String(int)
+        case let double as Double:
+            return String(double)
+        case let bool as Bool:
+            return String(bool)
+        default:
+            return String(describing: value)
+        }
     }
 
     /// Resolve a file reference path to a URL

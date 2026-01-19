@@ -37,6 +37,8 @@ public struct TestCase: Codable {
     public let platform: PlatformTarget?
     public let initialState: InitialState?
     public let steps: [TestStep]
+    /// Default argument values for @{varName} substitution
+    public let args: [String: AnyCodable]?
 }
 
 // MARK: - Flow Test
@@ -90,6 +92,8 @@ public struct FlowTestStep: Codable {
     public let file: String?
     public let `case`: String?
     public let cases: [String]?
+    /// Arguments to override screen test default args (for file reference steps)
+    public let args: [String: AnyCodable]?
 
     // For block steps (grouped inline actions)
     public let block: String?

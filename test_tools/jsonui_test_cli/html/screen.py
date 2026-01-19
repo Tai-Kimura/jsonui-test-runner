@@ -84,6 +84,18 @@ def generate_screen_html(
 
             html_parts.append(f"    <h3 id='{case_id}'>{i}. {escape_html(case_display)}</h3>")
             html_parts.append(f"    <p class='case-name-label'><strong>Case Name:</strong> <code>{escape_html(case_name)}</code></p>")
+
+            # Display args if present
+            case_args = case.get("args", {})
+            if case_args:
+                html_parts.append("    <div class='case-args'>")
+                html_parts.append("      <strong>Default Args:</strong>")
+                html_parts.append("      <ul>")
+                for arg_key, arg_value in case_args.items():
+                    html_parts.append(f"        <li><code>@{{{arg_key}}}</code> = <code>{escape_html(str(arg_value))}</code></li>")
+                html_parts.append("      </ul>")
+                html_parts.append("    </div>")
+
             html_parts.extend(format_description_html_fn(case_desc))
 
             steps = case.get("steps", [])

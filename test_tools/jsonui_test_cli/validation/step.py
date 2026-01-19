@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
 
 from .models import ValidationMessage, ValidationResult
@@ -11,6 +13,9 @@ from ..schema import (
     VALID_DIRECTIONS,
     VALID_STEP_KEYS,
 )
+
+# Pattern to match @{varName} placeholders
+ARG_PLACEHOLDER_PATTERN = re.compile(r'@\{([^}]+)\}')
 
 
 class StepValidator:
@@ -87,7 +92,7 @@ class StepValidator:
             return
 
         # Check for valid keys in file step
-        valid_file_step_keys = {"file", "case", "cases"}
+        valid_file_step_keys = {"file", "case", "cases", "args"}
         for key in step.keys():
             if key not in valid_file_step_keys:
                 result.warnings.append(ValidationMessage(
@@ -95,6 +100,27 @@ class StepValidator:
                     message=f"Unknown key in file step: {key}",
                     level="warning"
                 ))
+
+        # Validate args if present
+        if "args" in step:
+            args = step["args"]
+            if not isinstance(args, dict):
+                result.errors.append(ValidationMessage(
+                    path=f"{path}.args",
+                    message="'args' must be an object/dictionary"
+                ))
+            else:
+                for key, value in args.items():
+                    if not isinstance(key, str):
+                        result.errors.append(ValidationMessage(
+                            path=f"{path}.args",
+                            message=f"Argument key must be a string, got: {type(key).__name__}"
+                        ))
+                    if not isinstance(value, (str, int, float, bool)):
+                        result.errors.append(ValidationMessage(
+                            path=f"{path}.args.{key}",
+                            message=f"Argument value must be a primitive type (string, number, boolean), got: {type(value).__name__}"
+                        ))
 
         # Cannot have both 'case' and 'cases'
         if "case" in step and "cases" in step:
@@ -134,6 +160,74 @@ class StepValidator:
                     message=f"Referenced test file not found: {file_ref} (looked for {resolved_path})",
                     level="warning"
                 ))
+            elif resolved_path and resolved_path.exists():
+                # Validate args against referenced screen test
+                self._validate_file_step_args(step, path, result, resolved_path)
+
+    def _validate_file_step_args(self, step: dict, path: str, result: ValidationResult, resolved_path: Path):
+        """Validate that flow's args only override existing screen args (no new args allowed)."""
+        try:
+            with open(resolved_path, 'r', encoding='utf-8') as f:
+                screen_data = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            # Skip validation if file can't be read
+            return
+
+        cases = screen_data.get("cases", [])
+        if not cases:
+            return
+
+        flow_args = step.get("args", {}) if isinstance(step.get("args"), dict) else {}
+        if not flow_args:
+            # No flow args to validate
+            return
+
+        # Determine which cases to validate
+        case_names_to_validate = []
+        if "case" in step:
+            case_names_to_validate = [step["case"]]
+        elif "cases" in step:
+            case_names_to_validate = step["cases"]
+        else:
+            # All cases
+            case_names_to_validate = [c.get("name") for c in cases if c.get("name")]
+
+        for case in cases:
+            case_name = case.get("name")
+            if case_name not in case_names_to_validate:
+                continue
+
+            # Get screen's defined args for this case
+            screen_defined_args = set(case.get("args", {}).keys()) if isinstance(case.get("args"), dict) else set()
+
+            # Check if flow is trying to add new args not defined in screen
+            flow_arg_keys = set(flow_args.keys())
+            undefined_in_screen = flow_arg_keys - screen_defined_args
+            if undefined_in_screen:
+                for arg_name in sorted(undefined_in_screen):
+                    result.errors.append(ValidationMessage(
+                        path=path,
+                        message=f"Argument '@{{{arg_name}}}' passed in flow is not defined in screen case '{case_name}'. Flow can only override existing screen args."
+                    ))
+
+    def _extract_used_args(self, steps: list) -> set[str]:
+        """Extract all @{varName} placeholders used in steps."""
+        used_args: set[str] = set()
+        for step in steps:
+            self._extract_args_from_value(step, used_args)
+        return used_args
+
+    def _extract_args_from_value(self, obj, used_args: set[str]):
+        """Recursively extract @{varName} from any string value in the object."""
+        if isinstance(obj, str):
+            matches = ARG_PLACEHOLDER_PATTERN.findall(obj)
+            used_args.update(matches)
+        elif isinstance(obj, dict):
+            for value in obj.values():
+                self._extract_args_from_value(value, used_args)
+        elif isinstance(obj, list):
+            for item in obj:
+                self._extract_args_from_value(item, used_args)
 
     def _resolve_file_reference(self, file_ref: str) -> Path | None:
         """Resolve a file reference to an actual path."""

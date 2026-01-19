@@ -118,6 +118,14 @@ public class JsonUITestRunner {
         let startTime = Date()
         var screenshots: [XCTAttachment] = []
 
+        // Apply args substitution if test case has args
+        let processedCase: TestCase
+        if let loader = testLoader {
+            processedCase = loader.applyArgsSubstitution(to: testCase)
+        } else {
+            processedCase = applyArgsSubstitutionLocally(to: testCase)
+        }
+
         do {
             // Execute setup
             if let setupSteps = setup {
@@ -127,7 +135,7 @@ public class JsonUITestRunner {
             }
 
             // Execute test steps
-            for step in testCase.steps {
+            for step in processedCase.steps {
                 try executeStep(step)
             }
 
@@ -307,6 +315,118 @@ public class JsonUITestRunner {
             for testStep in testCase.steps {
                 try executeStep(testStep)
             }
+        }
+    }
+
+    // MARK: - Args Substitution (Local fallback when testLoader is not available)
+
+    /// Apply args substitution locally when testLoader is not set
+    private func applyArgsSubstitutionLocally(to testCase: TestCase) -> TestCase {
+        guard let args = testCase.args, !args.isEmpty else {
+            return testCase
+        }
+
+        // Convert AnyCodable args to [String: Any]
+        var argsDict: [String: Any] = [:]
+        for (key, value) in args {
+            argsDict[key] = value.value
+        }
+
+        // Apply substitution to steps
+        let substitutedSteps = testCase.steps.map { substituteArgsInStep($0, args: argsDict) }
+
+        return TestCase(
+            name: testCase.name,
+            description: testCase.description,
+            skip: testCase.skip,
+            platform: testCase.platform,
+            initialState: testCase.initialState,
+            steps: substitutedSteps,
+            args: testCase.args
+        )
+    }
+
+    /// Substitute @{varName} placeholders in a TestStep
+    private func substituteArgsInStep(_ step: TestStep, args: [String: Any]) -> TestStep {
+        return TestStep(
+            action: step.action,
+            assert: step.assert,
+            id: substituteArgsInString(step.id, args: args),
+            ids: step.ids?.map { substituteArgsInString($0, args: args) ?? $0 },
+            text: substituteArgsInString(step.text, args: args),
+            value: substituteArgsInString(step.value, args: args),
+            direction: step.direction,
+            duration: step.duration,
+            timeout: step.timeout,
+            ms: step.ms,
+            name: step.name,
+            equals: substituteArgsInAnyCodable(step.equals, args: args),
+            contains: substituteArgsInString(step.contains, args: args),
+            path: step.path,
+            amount: step.amount,
+            button: substituteArgsInString(step.button, args: args),
+            label: substituteArgsInString(step.label, args: args),
+            index: step.index
+        )
+    }
+
+    /// Substitute @{varName} placeholders in an optional string
+    private func substituteArgsInString(_ string: String?, args: [String: Any]) -> String? {
+        guard let string = string else { return nil }
+        return substituteArgsInString(string, args: args)
+    }
+
+    /// Substitute @{varName} placeholders in a string
+    private func substituteArgsInString(_ string: String, args: [String: Any]) -> String {
+        var result = string
+        let pattern = #"@\{([^}]+)\}"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            return string
+        }
+
+        let range = NSRange(string.startIndex..<string.endIndex, in: string)
+        let matches = regex.matches(in: string, range: range)
+
+        // Replace from end to start to preserve indices
+        for match in matches.reversed() {
+            guard let fullRange = Range(match.range, in: result),
+                  let varNameRange = Range(match.range(at: 1), in: result) else {
+                continue
+            }
+
+            let varName = String(result[varNameRange])
+            if let value = args[varName] {
+                let replacement = stringValueFromAny(value)
+                result.replaceSubrange(fullRange, with: replacement)
+            }
+        }
+
+        return result
+    }
+
+    /// Substitute @{varName} in AnyCodable (only for string values)
+    private func substituteArgsInAnyCodable(_ anyCodable: AnyCodable?, args: [String: Any]) -> AnyCodable? {
+        guard let anyCodable = anyCodable else { return nil }
+        if let stringValue = anyCodable.stringValue {
+            let substituted = substituteArgsInString(stringValue, args: args)
+            return AnyCodable(substituted)
+        }
+        return anyCodable
+    }
+
+    /// Convert Any to String
+    private func stringValueFromAny(_ value: Any) -> String {
+        switch value {
+        case let string as String:
+            return string
+        case let int as Int:
+            return String(int)
+        case let double as Double:
+            return String(double)
+        case let bool as Bool:
+            return String(bool)
+        default:
+            return String(describing: value)
         }
     }
 }

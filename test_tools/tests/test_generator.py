@@ -397,10 +397,202 @@ class TestFlowTestHtmlGeneration:
             assert "Steps" in content
             # Sidebar only shows file reference steps (step-1), not inline action/assert
             assert "href='#step-1'" in content
-            # Main content shows all steps (including inline action/assert)
+            # Main content shows file ref step with numbered id
             assert "id='step-1'" in content
-            assert "id='step-2'" in content
-            assert "id='step-3'" in content
+            # Inline steps use 'step-inline' id (not numbered)
+            assert "id='step-inline'" in content
+        finally:
+            temp_path.unlink()
+
+
+class TestArgsHtmlGeneration:
+    """Tests for args display in HTML generation."""
+
+    def setup_method(self):
+        self.generator = DocumentGenerator()
+
+    def test_screen_case_args_in_html(self):
+        """Test screen case args are displayed in HTML."""
+        test_data = {
+            "type": "screen",
+            "metadata": {"name": "login_test", "description": "Login screen test"},
+            "cases": [
+                {
+                    "name": "input_case",
+                    "description": "Test input with args",
+                    "args": {
+                        "userName": "testuser",
+                        "password": "secret123"
+                    },
+                    "steps": [
+                        {"action": "input", "id": "username_field", "value": "@{userName}"},
+                        {"action": "input", "id": "password_field", "value": "@{password}"}
+                    ]
+                }
+            ]
+        }
+
+        import tempfile
+        import json
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.test.json', delete=False) as f:
+            json.dump(test_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            content = self.generator.generate(temp_path, format="html")
+
+            # Check args section is displayed
+            assert "Default Args:" in content
+            assert "case-args" in content
+            assert "@{userName}" in content
+            assert "testuser" in content
+            assert "@{password}" in content
+            assert "secret123" in content
+        finally:
+            temp_path.unlink()
+
+    def test_screen_case_without_args_no_section(self):
+        """Test screen case without args doesn't show args section."""
+        test_data = {
+            "type": "screen",
+            "metadata": {"name": "simple_test"},
+            "cases": [
+                {
+                    "name": "simple_case",
+                    "description": "Test without args",
+                    "steps": [{"action": "tap", "id": "button"}]
+                }
+            ]
+        }
+
+        import tempfile
+        import json
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.test.json', delete=False) as f:
+            json.dump(test_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            content = self.generator.generate(temp_path, format="html")
+
+            assert "Default Args:" not in content
+            # class='case-args' div should not exist (CSS may define it but no content uses it)
+            assert "<div class='case-args'>" not in content
+        finally:
+            temp_path.unlink()
+
+    def test_flow_file_step_args_in_html(self):
+        """Test flow file step args are displayed in HTML."""
+        test_data = {
+            "type": "flow",
+            "metadata": {"name": "login_flow", "description": "Login flow test"},
+            "steps": [
+                {
+                    "file": "login",
+                    "case": "input",
+                    "args": {
+                        "userName": "flowuser",
+                        "env": "staging"
+                    }
+                },
+                {"action": "waitFor", "id": "home_screen", "timeout": 5000}
+            ]
+        }
+
+        import tempfile
+        import json
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.test.json', delete=False) as f:
+            json.dump(test_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            content = self.generator.generate(temp_path, format="html")
+
+            # Check args section is displayed
+            assert "Args (Override):" in content
+            assert "step-args" in content
+            assert "@{userName}" in content
+            assert "flowuser" in content
+            assert "@{env}" in content
+            assert "staging" in content
+        finally:
+            temp_path.unlink()
+
+    def test_flow_file_step_without_args_no_section(self):
+        """Test flow file step without args doesn't show args section."""
+        test_data = {
+            "type": "flow",
+            "metadata": {"name": "simple_flow"},
+            "steps": [
+                {"file": "login", "case": "display"},
+                {"action": "tap", "id": "button"}
+            ]
+        }
+
+        import tempfile
+        import json
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.test.json', delete=False) as f:
+            json.dump(test_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            content = self.generator.generate(temp_path, format="html")
+
+            assert "Args (Override):" not in content
+            # class='step-args' div should not exist (CSS may define it but no content uses it)
+            assert "<div class='step-args'>" not in content
+        finally:
+            temp_path.unlink()
+
+    def test_multiple_cases_with_different_args(self):
+        """Test multiple cases with different args are displayed correctly."""
+        test_data = {
+            "type": "screen",
+            "metadata": {"name": "multi_args_test"},
+            "cases": [
+                {
+                    "name": "case_with_args",
+                    "description": "Case with args",
+                    "args": {"arg1": "value1"},
+                    "steps": [{"action": "tap", "id": "btn"}]
+                },
+                {
+                    "name": "case_without_args",
+                    "description": "Case without args",
+                    "steps": [{"action": "back"}]
+                },
+                {
+                    "name": "case_with_other_args",
+                    "description": "Case with other args",
+                    "args": {"arg2": "value2", "arg3": 42},
+                    "steps": [{"action": "tap", "id": "btn2"}]
+                }
+            ]
+        }
+
+        import tempfile
+        import json
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.test.json', delete=False) as f:
+            json.dump(test_data, f)
+            temp_path = Path(f.name)
+
+        try:
+            content = self.generator.generate(temp_path, format="html")
+
+            # Check first case args
+            assert "@{arg1}" in content
+            assert "value1" in content
+            # Check third case args
+            assert "@{arg2}" in content
+            assert "value2" in content
+            assert "@{arg3}" in content
+            assert "42" in content
+            # Count occurrences of case-args class (should be 2)
+            assert content.count("class='case-args'") == 2
         finally:
             temp_path.unlink()
 
