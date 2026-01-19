@@ -167,11 +167,9 @@ def generate_document_html(
     html_parts = _get_html_header(doc_title, original_styles)
     html_parts.extend(generate_document_sidebar(doc_title, all_tests_nav, current_doc_path))
 
-    # Main content wrapper
-    html_parts.append("  <main class='main-content document-content'>")
-    html_parts.append("    <div class='document-body'>")
+    # Main content wrapper (same structure as screen test pages)
+    html_parts.append("  <main class='main-content'>")
     html_parts.append(body_content)
-    html_parts.append("    </div>")
     html_parts.append("  </main>")
 
     # Close HTML with Mermaid initialization
@@ -312,26 +310,9 @@ def _get_html_header(title: str, additional_styles: str = "") -> list[str]:
         "  <style>",
     ]
     parts.extend(get_screen_styles())
-    # Add document-specific styles
+    # Add minimal document-specific styles (main layout comes from screen styles)
     parts.extend([
-        "    /* Document content styles */",
-        "    .document-content { padding: 30px 40px; }",
-        "    .document-body { background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }",
-        "    .document-body h1 { color: #333; border-bottom: 2px solid #007AFF; padding-bottom: 10px; margin-top: 0; }",
-        "    .document-body h2 { color: #444; margin-top: 25px; }",
-        "    .document-body h3 { color: #555; margin-top: 20px; }",
-        "    .document-body p { line-height: 1.6; color: #333; }",
-        "    .document-body ul, .document-body ol { padding-left: 25px; }",
-        "    .document-body li { margin: 5px 0; line-height: 1.5; }",
-        "    .document-body code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace; }",
-        "    .document-body pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }",
-        "    .document-body pre code { background: none; padding: 0; }",
-        "    .document-body a { color: #007AFF; text-decoration: none; }",
-        "    .document-body a:hover { text-decoration: underline; }",
-        "    .document-body table { border-collapse: collapse; width: 100%; margin: 15px 0; }",
-        "    .document-body th, .document-body td { border: 1px solid #ddd; padding: 10px; text-align: left; }",
-        "    .document-body th { background: #f5f5f5; }",
-        "    .document-body img { max-width: 100%; height: auto; }",
+        "    /* Document-specific styles */",
         "    .error { color: #d32f2f; background: #ffebee; padding: 15px; border-radius: 5px; }",
     ])
     if additional_styles:
