@@ -16,6 +16,7 @@ from . import __version__
 from .validator import TestValidator
 from .generator import DocumentGenerator, generate_schema_reference, generate_html_directory
 from .mermaid import generate_mermaid_diagram, generate_mermaid_html
+from .adapter import generate_adapter, SUPPORTED_PLATFORMS as ADAPTER_PLATFORMS
 
 
 def cmd_validate(args):
@@ -325,6 +326,71 @@ def cmd_generate_mermaid(args):
         return 1
 
 
+def cmd_generate_adapter(args):
+    """Handle 'generate adapter' command - generate adapter files for custom actions."""
+    platform = args.platform
+    output_dir = Path(args.output) if args.output else Path(".")
+    project_name = args.name or "MyApp"
+
+    # Parse custom actions from JSON file if provided
+    custom_actions = None
+    if args.actions:
+        actions_path = Path(args.actions)
+        if actions_path.exists():
+            with open(actions_path, 'r', encoding='utf-8') as f:
+                custom_actions = json.load(f)
+                if isinstance(custom_actions, dict):
+                    custom_actions = custom_actions.get("actions", [])
+
+    print(f"Generating {platform} adapter...")
+    print(f"  Output: {output_dir}")
+    print(f"  Project: {project_name}")
+    if custom_actions:
+        print(f"  Custom actions: {len(custom_actions)}")
+
+    try:
+        generated = generate_adapter(
+            platform=platform,
+            output_dir=output_dir,
+            project_name=project_name,
+            custom_actions=custom_actions
+        )
+
+        print()
+        print("Generated files:")
+        for name, path in generated.items():
+            print(f"  {name}: {path}")
+
+        print()
+        print("Next steps:")
+        if platform == "ios":
+            print("  1. Add JsonUITestAdapter.swift to your UITest target")
+            print("  2. Call applyJsonUIConfig() before app.launch()")
+            print("  3. Implement your custom action handlers")
+        elif platform == "android":
+            print("  1. Add JsonUITestAdapter.kt to your androidTest directory")
+            print("  2. Call JsonUITestAdapter.configure() before activity launch")
+            print("  3. Implement your custom action handlers")
+        elif platform == "web":
+            print("  1. Import JsonUITestAdapter in your test setup")
+            print("  2. Call adapter.configure() before navigation")
+            print("  3. Implement your custom action handlers")
+
+        print()
+        print(f"Schema file: {generated.get('schema')}")
+        print("  Use this schema in your test JSON files for validation:")
+        print('  { "$schema": "./jsonui-test-custom.schema.json", ... }')
+
+        return 0
+
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
 # Legacy generate command for backwards compatibility
 def cmd_generate(args):
     """Handle legacy generate command (redirects to 'generate doc')."""
@@ -529,6 +595,30 @@ def main():
         help="Path to screens directory (default: auto-detect)"
     )
 
+    # Generate adapter subcommand
+    gen_adapter_parser = generate_subparsers.add_parser(
+        "adapter",
+        aliases=["a"],
+        help="Generate adapter files for custom actions and configurations"
+    )
+    gen_adapter_parser.add_argument(
+        "platform",
+        choices=ADAPTER_PLATFORMS,
+        help="Target platform (ios, android, web)"
+    )
+    gen_adapter_parser.add_argument(
+        "-o", "--output",
+        help="Output directory (default: current directory)"
+    )
+    gen_adapter_parser.add_argument(
+        "-n", "--name",
+        help="Project name for namespacing (default: MyApp)"
+    )
+    gen_adapter_parser.add_argument(
+        "-a", "--actions",
+        help="Path to JSON file defining custom actions"
+    )
+
     # Legacy: direct generate options (for backwards compatibility)
     generate_parser.add_argument(
         "-f", "--file",
@@ -582,6 +672,8 @@ def main():
                 return cmd_generate_html(args)
             elif args.generate_type == "mermaid":
                 return cmd_generate_mermaid(args)
+            elif args.generate_type in ["adapter", "a"]:
+                return cmd_generate_adapter(args)
         # Legacy: if --file or --schema is used directly
         elif args.file or args.schema:
             return cmd_generate(args)

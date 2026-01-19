@@ -11,6 +11,8 @@ jsonui_test_cli.egg-info/dependency_links.txt
 jsonui_test_cli.egg-info/entry_points.txt
 jsonui_test_cli.egg-info/requires.txt
 jsonui_test_cli.egg-info/top_level.txt
+jsonui_test_cli/adapter/__init__.py
+jsonui_test_cli/adapter/generator.py
 jsonui_test_cli/html/__init__.py
 jsonui_test_cli/html/flow.py
 jsonui_test_cli/html/index.py
