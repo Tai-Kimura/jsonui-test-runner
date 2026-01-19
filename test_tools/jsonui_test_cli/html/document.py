@@ -176,8 +176,8 @@ def generate_document_html(
     html_parts.append("  </main>")
 
     # Close HTML
+    html_parts.extend(get_toggle_script())
     html_parts.extend([
-        get_toggle_script(),
         "</body>",
         "</html>"
     ])
