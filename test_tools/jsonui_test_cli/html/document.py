@@ -10,6 +10,19 @@ from .styles import get_screen_styles, get_toggle_script
 from .sidebar import escape_html
 
 
+def _get_relative_root(doc_path: str) -> str:
+    """Calculate relative path to root from document path.
+
+    E.g., 'docs/screens/account.html' -> '../../'
+          'docs/test.html' -> '../'
+    """
+    from pathlib import Path
+    depth = len(Path(doc_path).parent.parts)
+    if depth == 0:
+        return "./"
+    return "../" * depth
+
+
 def generate_document_sidebar(
     title: str,
     all_tests_nav: dict | None = None,
@@ -26,9 +39,12 @@ def generate_document_sidebar(
     Returns:
         List of HTML strings for the sidebar
     """
+    # Calculate relative path to root based on document depth
+    rel_root = _get_relative_root(current_doc_path) if current_doc_path else "../"
+
     parts = []
     parts.append("  <nav class='sidebar'>")
-    parts.append("    <a href='../index.html' class='back-link'>&larr; Back to Index</a>")
+    parts.append(f"    <a href='{rel_root}index.html' class='back-link'>&larr; Back to Index</a>")
     parts.append(f"    <h2>{escape_html(title)}</h2>")
 
     # Flow Tests navigation (collapsible, collapsed by default)
@@ -39,7 +55,7 @@ def generate_document_sidebar(
         parts.append("      <div class='sidebar-list collapsed' id='flows-list'>")
         parts.append("        <ul>")
         for f in flows:
-            parts.append(f"          <li><a href='../{f['path']}' class='nav-link' title='{escape_html(f['name'])}'>{escape_html(f['name'])}</a></li>")
+            parts.append(f"          <li><a href='{rel_root}{f['path']}' class='nav-link' title='{escape_html(f['name'])}'>{escape_html(f['name'])}</a></li>")
         parts.append("        </ul>")
         parts.append("      </div>")
         parts.append("    </div>")
@@ -52,7 +68,7 @@ def generate_document_sidebar(
         parts.append("      <div class='sidebar-list collapsed' id='screens-list'>")
         parts.append("        <ul>")
         for s in screens:
-            parts.append(f"          <li><a href='../{s['path']}' class='nav-link' title='{escape_html(s['name'])}'>{escape_html(s['name'])}</a></li>")
+            parts.append(f"          <li><a href='{rel_root}{s['path']}' class='nav-link' title='{escape_html(s['name'])}'>{escape_html(s['name'])}</a></li>")
         parts.append("        </ul>")
         parts.append("      </div>")
         parts.append("    </div>")
@@ -67,7 +83,7 @@ def generate_document_sidebar(
         for d in documents:
             is_current = current_doc_path and d['path'] == current_doc_path
             current_class = " current" if is_current else ""
-            parts.append(f"          <li><a href='../{d['path']}' class='nav-link{current_class}' title='{escape_html(d['name'])}'>{escape_html(d['name'])}</a></li>")
+            parts.append(f"          <li><a href='{rel_root}{d['path']}' class='nav-link{current_class}' title='{escape_html(d['name'])}'>{escape_html(d['name'])}</a></li>")
         parts.append("        </ul>")
         parts.append("      </div>")
         parts.append("    </div>")
