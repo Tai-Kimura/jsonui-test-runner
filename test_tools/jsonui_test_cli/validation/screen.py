@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from .models import ValidationMessage, ValidationResult
 from .step import StepValidator
-from ..schema import VALID_TOP_LEVEL_KEYS, VALID_CASE_KEYS
+from ..schema import VALID_TOP_LEVEL_KEYS, VALID_CASE_KEYS, VALID_SOURCE_KEYS
+
+# Pattern to match @{varName} placeholders
+ARG_PLACEHOLDER_PATTERN = re.compile(r'@\{([^}]+)\}')
 
 
 class ScreenTestValidator:
@@ -31,6 +35,17 @@ class ScreenTestValidator:
                     message=f"Unknown top-level key: {key}",
                     level="warning"
                 ))
+
+        # Validate source object keys
+        source = data.get("source")
+        if source and isinstance(source, dict):
+            for key in source.keys():
+                if key not in VALID_SOURCE_KEYS:
+                    result.warnings.append(ValidationMessage(
+                        path=f"{path}.source",
+                        message=f"Unknown source key: {key}",
+                        level="warning"
+                    ))
 
         # Check required fields
         if "metadata" not in data:
@@ -102,6 +117,27 @@ class ScreenTestValidator:
                     level="warning"
                 ))
 
+        # Validate args if present
+        if "args" in case:
+            args = case["args"]
+            if not isinstance(args, dict):
+                result.errors.append(ValidationMessage(
+                    path=f"{path}.args",
+                    message="'args' must be an object/dictionary"
+                ))
+            else:
+                for key, value in args.items():
+                    if not isinstance(key, str):
+                        result.errors.append(ValidationMessage(
+                            path=f"{path}.args",
+                            message=f"Argument key must be a string, got: {type(key).__name__}"
+                        ))
+                    if not isinstance(value, (str, int, float, bool)):
+                        result.errors.append(ValidationMessage(
+                            path=f"{path}.args.{key}",
+                            message=f"Argument value must be a primitive type (string, number, boolean), got: {type(value).__name__}"
+                        ))
+
         # Validate steps
         steps = case.get("steps", [])
         if not steps:
@@ -114,3 +150,33 @@ class ScreenTestValidator:
         for i, step in enumerate(steps):
             step_path = f"{path}.steps[{i}]"
             self._step_validator.validate_step(step, step_path, result)
+
+        # Validate that all @{varName} placeholders have corresponding args defined
+        defined_args = set(case.get("args", {}).keys()) if isinstance(case.get("args"), dict) else set()
+        used_args = self._extract_used_args(steps)
+        undefined_args = used_args - defined_args
+        if undefined_args:
+            for arg_name in sorted(undefined_args):
+                result.errors.append(ValidationMessage(
+                    path=path,
+                    message=f"Undefined argument '@{{{arg_name}}}' used in steps but not defined in 'args'"
+                ))
+
+    def _extract_used_args(self, steps: list) -> set[str]:
+        """Extract all @{varName} placeholders used in steps."""
+        used_args: set[str] = set()
+        for step in steps:
+            self._extract_args_from_value(step, used_args)
+        return used_args
+
+    def _extract_args_from_value(self, obj, used_args: set[str]):
+        """Recursively extract @{varName} from any string value in the object."""
+        if isinstance(obj, str):
+            matches = ARG_PLACEHOLDER_PATTERN.findall(obj)
+            used_args.update(matches)
+        elif isinstance(obj, dict):
+            for value in obj.values():
+                self._extract_args_from_value(value, used_args)
+        elif isinstance(obj, list):
+            for item in obj:
+                self._extract_args_from_value(item, used_args)

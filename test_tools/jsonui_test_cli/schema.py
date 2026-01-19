@@ -136,13 +136,18 @@ VALID_TOP_LEVEL_KEYS = [
     "setup", "teardown", "cases", "sources", "steps", "checkpoints"
 ]
 
+# Valid keys in source object
+VALID_SOURCE_KEYS = ["layout", "document"]
+
 # Valid keys in test case
 # - name: Test case name (required)
 # - description: Inline description text
 # - descriptionFile: Path to external file containing detailed description (relative to test file)
 #   When specified, the generator reads this file and uses its content as the description.
 #   Supports .md (Markdown) and .txt files.
-VALID_CASE_KEYS = ["name", "description", "descriptionFile", "skip", "platform", "initialState", "steps"]
+# - args: Default argument values for variable substitution (@{varName} syntax)
+#   Can be overridden when called from flow tests
+VALID_CASE_KEYS = ["name", "description", "descriptionFile", "skip", "platform", "initialState", "steps", "args"]
 
 # Valid keys in test step
 VALID_STEP_KEYS = [
@@ -151,6 +156,8 @@ VALID_STEP_KEYS = [
     "path", "amount", "screen", "text", "button", "label", "index",
     # File reference step keys (for flow tests)
     "file", "case", "cases",
+    # Args for overriding screen test default args (for flow tests)
+    "args",
     # Block step keys (for flow tests - grouped inline steps)
     "block", "description", "descriptionFile", "steps"
 ]
@@ -166,18 +173,19 @@ VALID_DESCRIPTION_KEYS = [
 PARAMETER_DESCRIPTIONS = {
     "id": "Element identifier (accessibilityIdentifier on iOS, resource-id on Android, data-testid on Web)",
     "ids": "Array of element identifiers for waitForAny",
-    "value": "Text value for input actions",
+    "value": "Text value for input actions. Supports @{varName} syntax for variable substitution",
     "direction": "Direction for scroll/swipe: up, down, left, right",
     "duration": "Duration in milliseconds (for longPress)",
     "timeout": "Maximum wait time in milliseconds (default: 5000)",
     "ms": "Wait duration in milliseconds",
     "name": "Name for screenshot file",
-    "equals": "Exact value to match",
-    "contains": "Substring to match",
+    "equals": "Exact value to match. Supports @{varName} syntax for variable substitution",
+    "contains": "Substring to match. Supports @{varName} syntax for variable substitution",
     "amount": "Scroll amount (platform-specific)",
     "screen": "Screen identifier (for flow tests)",
     "text": "Specific text portion to tap within element (for tap action)",
     "button": "Button text to tap in alert dialog (for alertTap action)",
     "label": "Option label (visible text) to select (for selectOption action)",
-    "index": "Option index to select, 0-based (for selectOption action)"
+    "index": "Option index to select, 0-based (for selectOption action)",
+    "args": "Arguments for variable substitution. In screen test cases, defines default values. In flow file references, overrides defaults"
 }

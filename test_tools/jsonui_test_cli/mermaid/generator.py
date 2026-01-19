@@ -82,7 +82,8 @@ def generate_mermaid_diagram(
                     all_nodes[node_id] = screen_meta["label"]
                     node_metadata[node_id] = {
                         "entry_screen": screen_meta["entry_screen"],
-                        "groups": screen_meta["groups"]  # Now a list
+                        "groups": screen_meta["groups"],  # Now a list
+                        "document": screen_meta["document"]
                     }
 
                 flow_nodes.append(node_id)
@@ -165,7 +166,8 @@ def generate_grouped_mermaid_diagrams(
                     all_nodes[node_id] = screen_meta["label"]
                     node_metadata[node_id] = {
                         "entry_screen": screen_meta["entry_screen"],
-                        "groups": screen_meta["groups"]  # Now a list
+                        "groups": screen_meta["groups"],  # Now a list
+                        "document": screen_meta["document"]
                     }
 
                 flow_nodes.append(node_id)
@@ -250,6 +252,22 @@ def generate_grouped_mermaid_diagrams(
                     seen_edges.add(edge_key)
                     lines.append(f"    {from_id} --> {to_id}")
 
+        # Add click events for nodes with document links
+        click_lines = []
+        all_group_node_ids = group_nodes | relevant_entry_nodes
+        for node_id in sorted(all_group_node_ids):
+            meta = node_metadata.get(node_id, {})
+            document = meta.get("document")
+            if document:
+                label = all_nodes[node_id]
+                safe_tooltip = label.replace('"', "'")
+                click_lines.append(f'    click {node_id} "{document}" "{safe_tooltip}"')
+
+        if click_lines:
+            lines.append("")
+            lines.append("    %% Click events for document links")
+            lines.extend(click_lines)
+
         diagrams[group_name] = "\n".join(lines)
 
     return diagrams
@@ -330,12 +348,13 @@ def _get_screen_metadata(
         flows_path: Path to flows directory
 
     Returns:
-        Dict with 'label', 'entry_screen', and 'groups' keys
+        Dict with 'label', 'entry_screen', 'groups', and 'document' keys
     """
     result = {
         "label": file_ref.replace("_", " ").title(),
         "entry_screen": False,
-        "groups": []
+        "groups": [],
+        "document": None
     }
 
     # Try to find the screen test file
@@ -375,6 +394,10 @@ def _get_screen_metadata(
             result["groups"] = group_val
         else:
             result["groups"] = [group_val]
+
+        # Get document path from source
+        source = screen_data.get("source", {})
+        result["document"] = source.get("document")
 
         return result
 
@@ -532,6 +555,21 @@ def _build_mermaid_diagram(
         lines.append(f"    {from_id} --> {to_id}")
     for from_id, to_id in other_edges:
         lines.append(f"    {from_id} --> {to_id}")
+
+    # Add click events for nodes with document links
+    click_lines = []
+    for node_id in nodes:
+        meta = node_metadata.get(node_id, {})
+        document = meta.get("document")
+        if document:
+            label = nodes[node_id]
+            safe_tooltip = label.replace('"', "'")
+            click_lines.append(f'    click {node_id} "{document}" "{safe_tooltip}"')
+
+    if click_lines:
+        lines.append("")
+        lines.append("    %% Click events for document links")
+        lines.extend(click_lines)
 
     return "\n".join(lines)
 

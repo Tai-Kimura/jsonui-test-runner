@@ -54,7 +54,8 @@ def generate_screen_sidebar(
         for f in flows:
             is_current = current_test_path and f['path'] == current_test_path
             current_class = " current" if is_current else ""
-            parts.append(f"          <li><a href='../{f['path']}' class='nav-link{current_class}' title='{escape_html(f['name'])}'>{escape_html(f['name'])}</a></li>")
+            doc_link = f"<a href='../{f['document']}' class='doc-link' title='View specification document'>📄</a>" if f.get('document') else ""
+            parts.append(f"          <li><a href='../{f['path']}' class='nav-link{current_class}' title='{escape_html(f['name'])}'>{escape_html(f['name'])}</a>{doc_link}</li>")
         parts.append("        </ul>")
         parts.append("      </div>")
         parts.append("    </div>")
@@ -69,7 +70,8 @@ def generate_screen_sidebar(
         for s in screens:
             is_current = current_test_path and s['path'] == current_test_path
             current_class = " current" if is_current else ""
-            parts.append(f"          <li><a href='../{s['path']}' class='nav-link{current_class}' title='{escape_html(s['name'])}'>{escape_html(s['name'])}</a></li>")
+            doc_link = f"<a href='../{s['document']}' class='doc-link' title='View specification document'>📄</a>" if s.get('document') else ""
+            parts.append(f"          <li><a href='../{s['path']}' class='nav-link{current_class}' title='{escape_html(s['name'])}'>{escape_html(s['name'])}</a>{doc_link}</li>")
         parts.append("        </ul>")
         parts.append("      </div>")
         parts.append("    </div>")
@@ -149,7 +151,8 @@ def generate_flow_sidebar(
         for f in flows:
             is_current = current_test_path and f['path'] == current_test_path
             current_class = " current" if is_current else ""
-            parts.append(f"          <li><a href='../{f['path']}' class='nav-link{current_class}' title='{escape_html(f['name'])}'>{escape_html(f['name'])}</a></li>")
+            doc_link = f"<a href='../{f['document']}' class='doc-link' title='View specification document'>📄</a>" if f.get('document') else ""
+            parts.append(f"          <li><a href='../{f['path']}' class='nav-link{current_class}' title='{escape_html(f['name'])}'>{escape_html(f['name'])}</a>{doc_link}</li>")
         parts.append("        </ul>")
         parts.append("      </div>")
         parts.append("    </div>")
@@ -164,7 +167,8 @@ def generate_flow_sidebar(
         for s in screens:
             is_current = current_test_path and s['path'] == current_test_path
             current_class = " current" if is_current else ""
-            parts.append(f"          <li><a href='../{s['path']}' class='nav-link{current_class}' title='{escape_html(s['name'])}'>{escape_html(s['name'])}</a></li>")
+            doc_link = f"<a href='../{s['document']}' class='doc-link' title='View specification document'>📄</a>" if s.get('document') else ""
+            parts.append(f"          <li><a href='../{s['path']}' class='nav-link{current_class}' title='{escape_html(s['name'])}'>{escape_html(s['name'])}</a>{doc_link}</li>")
         parts.append("        </ul>")
         parts.append("      </div>")
         parts.append("    </div>")
@@ -208,7 +212,8 @@ def generate_index_sidebar(
         parts.append("      <div class='sidebar-list collapsed' id='sidebar-flows-list'>")
         parts.append("        <ul>")
         for f in flow_files:
-            parts.append(f"          <li><a href='{f['path']}' title='{escape_html(f['name'])}'>{escape_html(f['name'])}</a></li>")
+            doc_link = f"<a href='{f['document']}' class='doc-link' title='View specification document'>📄</a>" if f.get('document') else ""
+            parts.append(f"          <li><a href='{f['path']}' title='{escape_html(f['name'])}'>{escape_html(f['name'])}</a>{doc_link}</li>")
         parts.append("        </ul>")
         parts.append("      </div>")
         parts.append("    </div>")
@@ -220,7 +225,8 @@ def generate_index_sidebar(
         parts.append("      <div class='sidebar-list collapsed' id='sidebar-screens-list'>")
         parts.append("        <ul>")
         for f in screen_files:
-            parts.append(f"          <li><a href='{f['path']}' title='{escape_html(f['name'])}'>{escape_html(f['name'])}</a></li>")
+            doc_link = f"<a href='{f['document']}' class='doc-link' title='View specification document'>📄</a>" if f.get('document') else ""
+            parts.append(f"          <li><a href='{f['path']}' title='{escape_html(f['name'])}'>{escape_html(f['name'])}</a>{doc_link}</li>")
         parts.append("        </ul>")
         parts.append("      </div>")
         parts.append("    </div>")

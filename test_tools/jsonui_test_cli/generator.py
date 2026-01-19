@@ -11,6 +11,7 @@ from .html import (
     generate_screen_html,
     generate_flow_html,
     generate_index_html,
+    generate_document_html,
 )
 from .html.sidebar import escape_html
 from .markdown import generate_markdown, generate_schema_markdown
@@ -616,6 +617,7 @@ def generate_html_directory(
             metadata = result.test_data.get('metadata', {})
             cases = result.test_data.get('cases', [])
             steps = result.test_data.get('steps', [])
+            source = result.test_data.get('source', {})
 
             file_infos.append({
                 'test_file': test_file,
@@ -627,14 +629,15 @@ def generate_html_directory(
                 'case_count': len(cases) if cases else 0,
                 'step_count': len(steps) if steps else sum(len(c.get('steps', [])) for c in cases),
                 'platform': result.test_data.get('platform', 'all'),
+                'document': source.get('document'),
             })
         except Exception as e:
             print(f"  Error processing {test_file}: {e}")
 
     # Build navigation data for sidebar
     all_tests_nav = {
-        'screens': [{'name': f['name'], 'path': str(f['path'])} for f in file_infos if f['type'] == 'screen'],
-        'flows': [{'name': f['name'], 'path': str(f['path'])} for f in file_infos if f['type'] == 'flow'],
+        'screens': [{'name': f['name'], 'path': str(f['path']), 'document': f.get('document')} for f in file_infos if f['type'] == 'screen'],
+        'flows': [{'name': f['name'], 'path': str(f['path']), 'document': f.get('document')} for f in file_infos if f['type'] == 'flow'],
     }
 
     # Second pass: generate HTML with navigation
@@ -666,6 +669,7 @@ def generate_html_directory(
                 'case_count': file_info['case_count'],
                 'step_count': file_info['step_count'],
                 'platform': file_info['platform'],
+                'document': file_info.get('document'),
             })
 
             print(f"  Generated: {html_path}")
@@ -690,4 +694,93 @@ def generate_html_directory(
     # Generate index.html
     generate_index_html(output_path, generated_files, title, mermaid_generated)
 
+    # Generate document pages (HTML with sidebar) for each document
+    _generate_document_pages(input_path, output_path, generated_files, all_tests_nav)
+
     return generated_files
+
+
+def _generate_document_pages(
+    input_path: Path,
+    output_path: Path,
+    generated_files: list[dict],
+    all_tests_nav: dict
+) -> None:
+    """
+    Generate document pages with sidebar for all documents referenced in test files.
+
+    Args:
+        input_path: Input directory containing test files
+        output_path: Output directory for generated HTML
+        generated_files: List of generated file info dicts
+        all_tests_nav: Navigation data for sidebar
+    """
+    # Collect unique document paths
+    documents_to_process: dict[str, str] = {}  # doc_path -> test_name
+    for f in generated_files:
+        doc_path = f.get('document')
+        if doc_path:
+            documents_to_process[doc_path] = f.get('name', 'Document')
+
+    if not documents_to_process:
+        return
+
+    print(f"  Generating document pages...")
+
+    # Create docs output directory
+    docs_output = output_path / "docs"
+    docs_output.mkdir(parents=True, exist_ok=True)
+
+    import shutil
+
+    for doc_path, test_name in documents_to_process.items():
+        try:
+            # Resolve source document path
+            source_path = input_path / doc_path
+            if not source_path.exists():
+                # Try relative to parent
+                source_path = input_path.parent / doc_path
+            if not source_path.exists():
+                print(f"    Warning: Document not found: {doc_path}")
+                continue
+
+            # Determine output path (preserve relative structure)
+            # e.g., docs/screens/login.html -> docs/screens/login.html
+            rel_doc_path = Path(doc_path)
+            output_doc_path = output_path / rel_doc_path
+            output_doc_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # For HTML files with potential scripts/styles, use iframe approach:
+            # 1. Copy original to *_source.html
+            # 2. Generate wrapper with sidebar at original name
+            is_html = source_path.suffix.lower() in ['.html', '.htm']
+            if is_html:
+                # Copy original document to *_source.html
+                source_filename = f"{output_doc_path.stem}_source{output_doc_path.suffix}"
+                source_copy_path = output_doc_path.parent / source_filename
+                shutil.copy2(source_path, source_copy_path)
+
+                # Generate wrapper that iframes the source
+                html_content = generate_document_html(
+                    source_path=source_path,
+                    title=test_name,
+                    all_tests_nav=all_tests_nav,
+                    current_doc_path=doc_path,
+                    iframe_src=source_filename  # Just the filename, same directory
+                )
+            else:
+                # For markdown or other formats, embed directly
+                html_content = generate_document_html(
+                    source_path=source_path,
+                    title=test_name,
+                    all_tests_nav=all_tests_nav,
+                    current_doc_path=doc_path
+                )
+
+            with open(output_doc_path, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+
+            print(f"    Generated: {output_doc_path}")
+
+        except Exception as e:
+            print(f"    Error processing document {doc_path}: {e}")

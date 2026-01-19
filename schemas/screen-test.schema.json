@@ -24,9 +24,9 @@
           "type": "string",
           "description": "Path to the JsonUI layout file (e.g., 'Layouts/Login.json')"
         },
-        "spec": {
+        "document": {
           "type": "string",
-          "description": "Path to the specification document (e.g., 'specs/Login.md')"
+          "description": "Path to the specification document file (e.g., 'docs/screens/login.html' or 'docs/screens/login.md'). Used for linking from Mermaid flow diagrams."
         }
       },
       "required": ["layout"],

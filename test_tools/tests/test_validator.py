@@ -588,6 +588,308 @@ class TestDescriptionFileValidation:
             assert not result.is_valid
 
 
+class TestArgsValidation:
+    """Tests for args validation in screen tests and flow file steps."""
+
+    def setup_method(self):
+        self.validator = TestValidator()
+
+    def _make_screen_test(self, case_args: dict | None = None) -> dict:
+        case = {
+            "name": "test_case",
+            "description": "Test case with args",
+            "steps": [
+                {"action": "input", "id": "username_field", "value": "@{userName}"},
+                {"assert": "text", "id": "welcome_label", "contains": "@{userName}"}
+            ]
+        }
+        if case_args is not None:
+            case["args"] = case_args
+        return {
+            "type": "screen",
+            "metadata": {"name": "login_test"},
+            "cases": [case]
+        }
+
+    def _make_flow_test(self, steps: list) -> dict:
+        return {
+            "type": "flow",
+            "metadata": {"name": "flow_test"},
+            "steps": steps
+        }
+
+    # Screen test args validation
+    def test_screen_case_valid_args(self):
+        """Test screen case with valid args."""
+        data = self._make_screen_test({"userName": "testuser", "password": "secret123"})
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_screen_case_args_with_various_types(self):
+        """Test screen case with various primitive types in args."""
+        # Use a test without @{} placeholders to test various arg types
+        data = {
+            "type": "screen",
+            "metadata": {"name": "test"},
+            "cases": [{
+                "name": "test_case",
+                "description": "Test with various arg types",
+                "args": {
+                    "stringArg": "hello",
+                    "intArg": 42,
+                    "floatArg": 3.14,
+                    "boolArg": True
+                },
+                "steps": [{"action": "tap", "id": "button"}]
+            }]
+        }
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_screen_case_args_not_dict_fails(self):
+        """Test screen case with non-dict args fails."""
+        data = self._make_screen_test("invalid")
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("must be an object/dictionary" in str(e) for e in result.errors)
+
+    def test_screen_case_args_list_fails(self):
+        """Test screen case with list args fails."""
+        data = self._make_screen_test(["arg1", "arg2"])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("must be an object/dictionary" in str(e) for e in result.errors)
+
+    def test_screen_case_args_with_complex_value_fails(self):
+        """Test screen case with complex value in args fails."""
+        data = self._make_screen_test({
+            "validArg": "value",
+            "invalidArg": {"nested": "object"}
+        })
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("primitive type" in str(e) for e in result.errors)
+
+    def test_screen_case_args_with_list_value_fails(self):
+        """Test screen case with list value in args fails."""
+        data = self._make_screen_test({
+            "invalidArg": ["item1", "item2"]
+        })
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("primitive type" in str(e) for e in result.errors)
+
+    def test_screen_case_args_with_none_value_fails(self):
+        """Test screen case with None value in args fails."""
+        data = self._make_screen_test({
+            "nullArg": None
+        })
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("primitive type" in str(e) for e in result.errors)
+
+    def test_screen_case_empty_args_valid(self):
+        """Test screen case with empty args (no placeholders used) is valid."""
+        # Use a test without @{} placeholders
+        data = {
+            "type": "screen",
+            "metadata": {"name": "test"},
+            "cases": [{
+                "name": "test_case",
+                "description": "Test without placeholders",
+                "args": {},
+                "steps": [{"action": "tap", "id": "button"}]
+            }]
+        }
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    # Flow file step args validation
+    def test_flow_file_step_valid_args(self):
+        """Test flow file step with valid args."""
+        data = self._make_flow_test([
+            {"file": "login", "case": "input", "args": {"userName": "flowuser"}}
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_flow_file_step_args_with_various_types(self):
+        """Test flow file step with various primitive types in args."""
+        data = self._make_flow_test([
+            {
+                "file": "login",
+                "case": "input",
+                "args": {
+                    "stringArg": "hello",
+                    "intArg": 42,
+                    "floatArg": 3.14,
+                    "boolArg": False
+                }
+            }
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_flow_file_step_args_not_dict_fails(self):
+        """Test flow file step with non-dict args fails."""
+        data = self._make_flow_test([
+            {"file": "login", "case": "input", "args": "invalid"}
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("must be an object/dictionary" in str(e) for e in result.errors)
+
+    def test_flow_file_step_args_with_complex_value_fails(self):
+        """Test flow file step with complex value in args fails."""
+        data = self._make_flow_test([
+            {
+                "file": "login",
+                "case": "input",
+                "args": {"nested": {"key": "value"}}
+            }
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("primitive type" in str(e) for e in result.errors)
+
+    def test_flow_file_step_args_with_list_value_fails(self):
+        """Test flow file step with list value in args fails."""
+        data = self._make_flow_test([
+            {
+                "file": "login",
+                "case": "input",
+                "args": {"listArg": [1, 2, 3]}
+            }
+        ])
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("primitive type" in str(e) for e in result.errors)
+
+    def test_flow_file_step_empty_args_valid(self):
+        """Test flow file step with empty args is valid."""
+        data = self._make_flow_test([
+            {"file": "login", "case": "input", "args": {}}
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_flow_file_step_with_cases_and_args(self):
+        """Test flow file step with multiple cases and args."""
+        data = self._make_flow_test([
+            {
+                "file": "login",
+                "cases": ["case1", "case2"],
+                "args": {"userName": "shared_user"}
+            }
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_flow_mixed_steps_with_args(self):
+        """Test flow with mixed file refs (with/without args) and inline steps."""
+        data = self._make_flow_test([
+            {"file": "login", "case": "display"},
+            {"file": "login", "case": "input", "args": {"userName": "testuser"}},
+            {"action": "waitFor", "id": "home", "timeout": 5000},
+            {"file": "home", "args": {"welcomeText": "Hello"}}
+        ])
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    # Undefined args validation (screen test)
+    def test_screen_case_undefined_arg_fails(self):
+        """Test screen case with undefined @{varName} fails."""
+        data = {
+            "type": "screen",
+            "metadata": {"name": "test"},
+            "cases": [{
+                "name": "test_case",
+                "description": "Case with undefined arg",
+                "args": {"userName": "test"},  # password is NOT defined
+                "steps": [
+                    {"action": "input", "id": "username_field", "value": "@{userName}"},
+                    {"action": "input", "id": "password_field", "value": "@{password}"}
+                ]
+            }]
+        }
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("Undefined argument '@{password}'" in str(e) for e in result.errors)
+
+    def test_screen_case_all_args_defined_passes(self):
+        """Test screen case with all @{varName} defined passes."""
+        data = {
+            "type": "screen",
+            "metadata": {"name": "test"},
+            "cases": [{
+                "name": "test_case",
+                "description": "Case with all args defined",
+                "args": {"userName": "test", "password": "secret"},
+                "steps": [
+                    {"action": "input", "id": "username_field", "value": "@{userName}"},
+                    {"action": "input", "id": "password_field", "value": "@{password}"}
+                ]
+            }]
+        }
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_screen_case_no_args_no_placeholders_passes(self):
+        """Test screen case without args and without placeholders passes."""
+        data = {
+            "type": "screen",
+            "metadata": {"name": "test"},
+            "cases": [{
+                "name": "test_case",
+                "description": "Case without args",
+                "steps": [
+                    {"action": "input", "id": "username_field", "value": "literal_value"},
+                    {"action": "tap", "id": "button"}
+                ]
+            }]
+        }
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+
+    def test_screen_case_multiple_undefined_args(self):
+        """Test screen case with multiple undefined args shows all errors."""
+        data = {
+            "type": "screen",
+            "metadata": {"name": "test"},
+            "cases": [{
+                "name": "test_case",
+                "description": "Case with multiple undefined args",
+                "steps": [
+                    {"action": "input", "id": "field1", "value": "@{arg1}"},
+                    {"action": "input", "id": "field2", "value": "@{arg2}"},
+                    {"assert": "text", "id": "label", "equals": "@{arg3}"}
+                ]
+            }]
+        }
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("@{arg1}" in str(e) for e in result.errors)
+        assert any("@{arg2}" in str(e) for e in result.errors)
+        assert any("@{arg3}" in str(e) for e in result.errors)
+
+    def test_screen_case_arg_in_contains_undefined_fails(self):
+        """Test screen case with undefined arg in contains fails."""
+        data = {
+            "type": "screen",
+            "metadata": {"name": "test"},
+            "cases": [{
+                "name": "test_case",
+                "description": "Case with undefined arg in contains",
+                "steps": [
+                    {"assert": "text", "id": "label", "contains": "@{searchText}"}
+                ]
+            }]
+        }
+        result = self.validator.validate_data(data)
+        assert not result.is_valid
+        assert any("@{searchText}" in str(e) for e in result.errors)
+
+
 class TestFlowBlockStepValidation:
     """Tests for flow test block step validation."""
 
@@ -747,6 +1049,252 @@ class TestFlowBlockStepValidation:
         result = self.validator.validate_data(data)
         assert result.is_valid
         assert result.warning_count > 0
+
+
+class TestFlowFileStepArgsValidation:
+    """Tests for flow file step args validation against referenced screen tests."""
+
+    def setup_method(self):
+        self.validator = TestValidator()
+
+    def test_flow_file_step_with_undefined_arg_in_flow_fails(self):
+        """Test flow file step passing arg not defined in screen fails."""
+        import tempfile
+        import json
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create screen test with all args defined
+            screen_test = {
+                "type": "screen",
+                "metadata": {"name": "login"},
+                "cases": [{
+                    "name": "input",
+                    "description": "Login input",
+                    "args": {"userName": "default", "password": "default_pass"},
+                    "steps": [
+                        {"action": "input", "id": "username", "value": "@{userName}"},
+                        {"action": "input", "id": "password", "value": "@{password}"}
+                    ]
+                }]
+            }
+            screen_path = Path(temp_dir) / "screens"
+            screen_path.mkdir()
+            with open(screen_path / "login.test.json", 'w') as f:
+                json.dump(screen_test, f)
+
+            # Create flow test that tries to pass an arg not defined in screen
+            flow_test = {
+                "type": "flow",
+                "metadata": {"name": "login_flow"},
+                "steps": [
+                    {"file": "login", "case": "input", "args": {"unknownArg": "value"}}
+                ]
+            }
+            flow_path = Path(temp_dir) / "flows"
+            flow_path.mkdir()
+            flow_file = flow_path / "login_flow.test.json"
+            with open(flow_file, 'w') as f:
+                json.dump(flow_test, f)
+
+            result = self.validator.validate_file(flow_file)
+            assert not result.is_valid
+            assert any("@{unknownArg}" in str(e) and "not defined in screen" in str(e) for e in result.errors)
+
+    def test_flow_file_step_override_existing_arg_passes(self):
+        """Test flow file step that overrides existing screen arg passes."""
+        import tempfile
+        import json
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create screen test with all args defined
+            screen_test = {
+                "type": "screen",
+                "metadata": {"name": "login"},
+                "cases": [{
+                    "name": "input",
+                    "description": "Login input",
+                    "args": {"userName": "default", "password": "default_pass"},
+                    "steps": [
+                        {"action": "input", "id": "username", "value": "@{userName}"},
+                        {"action": "input", "id": "password", "value": "@{password}"}
+                    ]
+                }]
+            }
+            screen_path = Path(temp_dir) / "screens"
+            screen_path.mkdir()
+            with open(screen_path / "login.test.json", 'w') as f:
+                json.dump(screen_test, f)
+
+            # Create flow test that overrides existing arg
+            flow_test = {
+                "type": "flow",
+                "metadata": {"name": "login_flow"},
+                "steps": [
+                    {"file": "login", "case": "input", "args": {"password": "override_pass"}}
+                ]
+            }
+            flow_path = Path(temp_dir) / "flows"
+            flow_path.mkdir()
+            flow_file = flow_path / "login_flow.test.json"
+            with open(flow_file, 'w') as f:
+                json.dump(flow_test, f)
+
+            result = self.validator.validate_file(flow_file)
+            assert result.is_valid
+
+    def test_flow_file_step_screen_has_all_defaults_passes(self):
+        """Test flow file step referencing screen with all defaults passes."""
+        import tempfile
+        import json
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create screen test with all args defined
+            screen_test = {
+                "type": "screen",
+                "metadata": {"name": "login"},
+                "cases": [{
+                    "name": "input",
+                    "description": "Login input",
+                    "args": {"userName": "default", "password": "default_pass"},
+                    "steps": [
+                        {"action": "input", "id": "username", "value": "@{userName}"},
+                        {"action": "input", "id": "password", "value": "@{password}"}
+                    ]
+                }]
+            }
+            screen_path = Path(temp_dir) / "screens"
+            screen_path.mkdir()
+            with open(screen_path / "login.test.json", 'w') as f:
+                json.dump(screen_test, f)
+
+            # Create flow test without args (uses screen defaults)
+            flow_test = {
+                "type": "flow",
+                "metadata": {"name": "login_flow"},
+                "steps": [
+                    {"file": "login", "case": "input"}
+                ]
+            }
+            flow_path = Path(temp_dir) / "flows"
+            flow_path.mkdir()
+            flow_file = flow_path / "login_flow.test.json"
+            with open(flow_file, 'w') as f:
+                json.dump(flow_test, f)
+
+            result = self.validator.validate_file(flow_file)
+            assert result.is_valid
+
+    def test_flow_file_step_multiple_args_override_passes(self):
+        """Test flow can override multiple existing args defined in screen."""
+        import tempfile
+        import json
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create screen test with all args defined
+            screen_test = {
+                "type": "screen",
+                "metadata": {"name": "login"},
+                "cases": [{
+                    "name": "input",
+                    "description": "Login input",
+                    "args": {
+                        "userName": "default_user",
+                        "password": "default_pass",
+                        "env": "production"
+                    },
+                    "steps": [
+                        {"action": "input", "id": "username", "value": "@{userName}"},
+                        {"action": "input", "id": "password", "value": "@{password}"},
+                        {"action": "input", "id": "env", "value": "@{env}"}
+                    ]
+                }]
+            }
+            screen_path = Path(temp_dir) / "screens"
+            screen_path.mkdir()
+            with open(screen_path / "login.test.json", 'w') as f:
+                json.dump(screen_test, f)
+
+            # Create flow test that overrides all three args
+            flow_test = {
+                "type": "flow",
+                "metadata": {"name": "login_flow"},
+                "steps": [
+                    {
+                        "file": "login",
+                        "case": "input",
+                        "args": {
+                            "userName": "override_user",
+                            "password": "secret",
+                            "env": "staging"
+                        }
+                    }
+                ]
+            }
+            flow_path = Path(temp_dir) / "flows"
+            flow_path.mkdir()
+            flow_file = flow_path / "login_flow.test.json"
+            with open(flow_file, 'w') as f:
+                json.dump(flow_test, f)
+
+            result = self.validator.validate_file(flow_file)
+            assert result.is_valid
+
+
+class TestSourceValidation:
+    """Tests for source object validation."""
+
+    def setup_method(self):
+        self.validator = TestValidator()
+
+    def test_valid_source_with_layout_only(self):
+        """Test valid source with layout only."""
+        data = {
+            "type": "screen",
+            "source": {"layout": "layouts/test.json"},
+            "metadata": {"name": "test", "description": "Test"},
+            "cases": [{"name": "case1", "description": "Test case", "steps": [{"action": "tap", "id": "btn"}]}]
+        }
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+        assert result.warning_count == 0
+
+    def test_valid_source_with_document(self):
+        """Test valid source with document."""
+        data = {
+            "type": "screen",
+            "source": {"layout": "layouts/test.json", "document": "docs/screens/test.html"},
+            "metadata": {"name": "test", "description": "Test"},
+            "cases": [{"name": "case1", "description": "Test case", "steps": [{"action": "tap", "id": "btn"}]}]
+        }
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+        assert result.warning_count == 0
+
+    def test_source_unknown_key_warning(self):
+        """Test unknown key in source produces warning."""
+        data = {
+            "type": "screen",
+            "source": {"layout": "layouts/test.json", "unknownKey": "value"},
+            "metadata": {"name": "test", "description": "Test"},
+            "cases": [{"name": "case1", "description": "Test case", "steps": [{"action": "tap", "id": "btn"}]}]
+        }
+        result = self.validator.validate_data(data)
+        assert result.is_valid  # Should pass with warning
+        assert result.warning_count > 0
+        assert any("Unknown source key: unknownKey" in str(w) for w in result.warnings)
+
+    def test_source_multiple_unknown_keys_warning(self):
+        """Test multiple unknown keys in source produce warnings."""
+        data = {
+            "type": "screen",
+            "source": {"layout": "layouts/test.json", "foo": "bar", "baz": "qux"},
+            "metadata": {"name": "test", "description": "Test"},
+            "cases": [{"name": "case1", "description": "Test case", "steps": [{"action": "tap", "id": "btn"}]}]
+        }
+        result = self.validator.validate_data(data)
+        assert result.is_valid
+        assert any("Unknown source key: foo" in str(w) for w in result.warnings)
+        assert any("Unknown source key: baz" in str(w) for w in result.warnings)
 
 
 if __name__ == "__main__":

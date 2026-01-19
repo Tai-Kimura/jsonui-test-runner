@@ -92,6 +92,11 @@ def generate_index_html(
             html_parts.extend([
                 "          <li class='test-item flow'>",
                 f"            <a href='{f['path']}' class='test-name'>{escape_html(f['name'])}</a>",
+            ])
+            # Add document link if available
+            if f.get('document'):
+                html_parts.append(f"            <a href='{f['document']}' class='doc-link' title='View specification document'>📄</a>")
+            html_parts.extend([
                 "            <div class='test-meta'>",
                 f"              <span class='badge badge-platform'>{f['platform']}</span>",
                 f"              {f['step_count']} steps",
@@ -120,6 +125,11 @@ def generate_index_html(
             html_parts.extend([
                 "          <li class='test-item screen'>",
                 f"            <a href='{f['path']}' class='test-name'>{escape_html(f['name'])}</a>",
+            ])
+            # Add document link if available
+            if f.get('document'):
+                html_parts.append(f"            <a href='{f['document']}' class='doc-link' title='View specification document'>📄</a>")
+            html_parts.extend([
                 "            <div class='test-meta'>",
                 f"              <span class='badge badge-platform'>{f['platform']}</span>",
                 f"              {f['case_count']} cases, {f['step_count']} steps",
