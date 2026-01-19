@@ -112,15 +112,36 @@ def _extract_body_content(html_content: str) -> str:
     # Try to extract content between <body> tags
     body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content, re.IGNORECASE | re.DOTALL)
     if body_match:
-        return body_match.group(1).strip()
+        content = body_match.group(1).strip()
+    elif re.search(r'<html|<!DOCTYPE', html_content, re.IGNORECASE):
+        # It's an HTML document but we couldn't find body - return as-is
+        content = html_content
+    else:
+        # It's probably just HTML fragment, return as-is
+        content = html_content
 
-    # If no body tag, check if it looks like a full HTML document
-    if re.search(r'<html|<!DOCTYPE', html_content, re.IGNORECASE):
-        # It's an HTML document but we couldn't find body - return empty
-        return html_content
+    # Convert <pre><code class="language-mermaid"> to <pre class="mermaid"> for Mermaid CDN
+    content = _convert_mermaid_blocks(content)
+    return content
 
-    # It's probably just HTML fragment, return as-is
-    return html_content
+
+def _convert_mermaid_blocks(html_content: str) -> str:
+    """Convert code blocks with language-mermaid class to Mermaid-compatible format."""
+    # Pattern: <pre><code class="language-mermaid">...</code></pre>
+    # Replace with: <pre class="mermaid">...</pre>
+    pattern = r'<pre>\s*<code\s+class=["\']language-mermaid["\']>(.*?)</code>\s*</pre>'
+
+    def replace_mermaid(match):
+        # Get the mermaid content and unescape HTML entities
+        content = match.group(1)
+        # Unescape common HTML entities that might be in the mermaid code
+        content = content.replace('&gt;', '>')
+        content = content.replace('&lt;', '<')
+        content = content.replace('&amp;', '&')
+        content = content.replace('&quot;', '"')
+        return f'<pre class="mermaid">{content}</pre>'
+
+    return re.sub(pattern, replace_mermaid, html_content, flags=re.DOTALL | re.IGNORECASE)
 
 
 def _extract_head_styles(html_content: str) -> str:
