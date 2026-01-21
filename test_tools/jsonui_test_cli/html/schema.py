@@ -159,7 +159,9 @@ def _render_schema(schema_name: str, schema_def: dict) -> list[str]:
             "            <th>Type</th>",
             "            <th>Description</th>",
             "            <th>Default</th>",
+            "            <th>Key</th>",
             "            <th>Constraints</th>",
+            "            <th>Notes</th>",
             "          </tr>",
             "        </thead>",
             "        <tbody>",
@@ -276,10 +278,29 @@ def _render_property_row(prop_name: str, prop_def: dict, is_required: bool) -> l
         else:
             default_str = f"<code>{escape_html(str(default_val))}</code>"
 
+    # Build key info (PRI, UNI, FK, IDX)
+    key_parts = []
+    if prop_def.get('x-primary-key'):
+        key_parts.append("<span class='key-pri'>PRI</span>")
+    if prop_def.get('x-unique'):
+        key_parts.append("<span class='key-uni'>UNI</span>")
+    if prop_def.get('x-foreign-key'):
+        fk = prop_def['x-foreign-key']
+        if isinstance(fk, dict):
+            fk_ref = f"{fk.get('table', '')}.{fk.get('column', '')}"
+            key_parts.append(f"<span class='key-fk'>FK</span> <span class='fk-ref'>{escape_html(fk_ref)}</span>")
+        else:
+            key_parts.append(f"<span class='key-fk'>FK</span> <span class='fk-ref'>{escape_html(str(fk))}</span>")
+    if prop_def.get('x-index'):
+        key_parts.append("<span class='key-idx'>IDX</span>")
+    key_str = ' '.join(key_parts) if key_parts else '-'
+
     # Build constraints
     constraints = []
     if is_required:
         constraints.append("<span class='required'>required</span>")
+    if prop_def.get('x-auto-increment'):
+        constraints.append("<span class='auto-increment'>auto_increment</span>")
     if 'maxLength' in prop_def:
         constraints.append(f"maxLength: {prop_def['maxLength']}")
     if 'minLength' in prop_def:
@@ -298,12 +319,23 @@ def _render_property_row(prop_name: str, prop_def: dict, is_required: bool) -> l
 
     constraints_str = '<br>'.join(constraints) if constraints else '-'
 
+    # Build notes
+    notes_str = '-'
+    if 'x-notes' in prop_def:
+        notes = prop_def['x-notes']
+        if isinstance(notes, list):
+            notes_str = '<br>'.join(escape_html(str(n)) for n in notes)
+        else:
+            notes_str = escape_html(str(notes))
+
     parts.append("          <tr>")
     parts.append(f"            <td><code>{escape_html(prop_name)}</code></td>")
     parts.append(f"            <td><code>{escape_html(type_str)}</code></td>")
     parts.append(f"            <td>{escape_html(prop_desc)}</td>")
     parts.append(f"            <td>{default_str}</td>")
+    parts.append(f"            <td>{key_str}</td>")
     parts.append(f"            <td>{constraints_str}</td>")
+    parts.append(f"            <td class='notes-cell'>{notes_str}</td>")
     parts.append("          </tr>")
 
     return parts
@@ -452,6 +484,51 @@ def _get_html_header(title: str) -> list[str]:
         "      color: #e53e3e;",
         "      font-weight: 600;",
         "      font-size: 12px;",
+        "    }",
+        "    .auto-increment {",
+        "      color: #6b7280;",
+        "      font-size: 12px;",
+        "    }",
+        "    .key-pri {",
+        "      background: #fef3c7;",
+        "      color: #92400e;",
+        "      padding: 2px 6px;",
+        "      border-radius: 3px;",
+        "      font-size: 11px;",
+        "      font-weight: 600;",
+        "    }",
+        "    .key-uni {",
+        "      background: #dbeafe;",
+        "      color: #1e40af;",
+        "      padding: 2px 6px;",
+        "      border-radius: 3px;",
+        "      font-size: 11px;",
+        "      font-weight: 600;",
+        "    }",
+        "    .key-fk {",
+        "      background: #dcfce7;",
+        "      color: #166534;",
+        "      padding: 2px 6px;",
+        "      border-radius: 3px;",
+        "      font-size: 11px;",
+        "      font-weight: 600;",
+        "    }",
+        "    .fk-ref {",
+        "      color: #166534;",
+        "      font-size: 11px;",
+        "    }",
+        "    .key-idx {",
+        "      background: #f3e8ff;",
+        "      color: #7c3aed;",
+        "      padding: 2px 6px;",
+        "      border-radius: 3px;",
+        "      font-size: 11px;",
+        "      font-weight: 600;",
+        "    }",
+        "    .notes-cell {",
+        "      font-size: 12px;",
+        "      color: #666;",
+        "      max-width: 300px;",
         "    }",
         "    .enum-schema {",
         "      background: #f0f9ff;",
