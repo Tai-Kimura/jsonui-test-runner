@@ -14,7 +14,8 @@ def generate_index_html(
     files: list[dict],
     title: str,
     has_mermaid_diagram: bool = False,
-    document_files: list[dict] | None = None
+    document_files: list[dict] | None = None,
+    api_doc_files: list[dict] | None = None
 ) -> None:
     """
     Generate index.html with collapsible categories and sidebar navigation.
@@ -25,6 +26,7 @@ def generate_index_html(
         title: Page title
         has_mermaid_diagram: Whether a Mermaid diagram was generated
         document_files: List of document file dicts
+        api_doc_files: List of API documentation file dicts
     """
     screen_files = [f for f in files if f['type'] == 'screen']
     flow_files = [f for f in files if f['type'] == 'flow']
@@ -33,11 +35,12 @@ def generate_index_html(
     screen_count = len(screen_files)
     flow_count = len(flow_files)
     doc_count = len(document_files) if document_files else 0
+    api_doc_count = len(api_doc_files) if api_doc_files else 0
     total_cases = sum(f['case_count'] for f in files)
     total_steps = sum(f['step_count'] for f in files)
 
     html_parts = _get_html_header(title)
-    html_parts.extend(generate_index_sidebar(title, flow_files, screen_files, has_mermaid_diagram, document_files))
+    html_parts.extend(generate_index_sidebar(title, flow_files, screen_files, has_mermaid_diagram, document_files, api_doc_files))
 
     # Main content
     html_parts.append("  <main class='main-content'>")
@@ -153,6 +156,31 @@ def generate_index_html(
                 f"            <a href='{d['path']}' class='test-name'>{escape_html(d['name'])}</a>",
                 "          </li>",
             ])
+        html_parts.extend([
+            "        </ul>",
+            "      </div>",
+            "    </div>",
+        ])
+
+    # API Docs category (collapsible, starts collapsed)
+    if api_doc_files:
+        html_parts.extend([
+            "    <div class='category'>",
+            "      <div class='category-header collapsed' id='api-docs-header' onclick=\"toggleCategory('api-docs')\">",
+            f"        <h2><span class='arrow'>▼</span> API Docs <span class='category-badge api'>{api_doc_count}</span></h2>",
+            "      </div>",
+            "      <div class='category-content collapsed' id='api-docs-content'>",
+            "        <ul class='test-list'>",
+        ])
+        for d in api_doc_files:
+            desc = d.get('description', '')
+            html_parts.extend([
+                "          <li class='test-item api'>",
+                f"            <a href='{d['path']}' class='test-name'>{escape_html(d['name'])}</a>",
+            ])
+            if desc:
+                html_parts.append(f"            <div class='test-description'>{escape_html(desc)}</div>")
+            html_parts.append("          </li>")
         html_parts.extend([
             "        </ul>",
             "      </div>",

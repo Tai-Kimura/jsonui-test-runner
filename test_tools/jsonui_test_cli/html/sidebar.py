@@ -87,6 +87,19 @@ def generate_screen_sidebar(
         parts.append("      </div>")
         parts.append("    </div>")
 
+    # API Docs navigation (collapsible, collapsed by default)
+    if all_tests_nav and all_tests_nav.get('api_docs'):
+        api_docs = all_tests_nav['api_docs']
+        parts.append("    <div class='sidebar-section'>")
+        parts.append(f"      <div class='sidebar-title api collapsed' id='api-docs-title' onclick=\"toggleSection('api-docs')\"><span class='arrow'>▼</span> API Docs <span class='count'>{len(api_docs)}</span></div>")
+        parts.append("      <div class='sidebar-list collapsed' id='api-docs-list'>")
+        parts.append("        <ul>")
+        for d in api_docs:
+            parts.append(f"          <li><a href='../{d['path']}' class='nav-link' title='{escape_html(d['name'])}'>{escape_html(d['name'])}</a></li>")
+        parts.append("        </ul>")
+        parts.append("      </div>")
+        parts.append("    </div>")
+
     parts.append("  </nav>")
     return parts
 
@@ -195,6 +208,19 @@ def generate_flow_sidebar(
         parts.append("      </div>")
         parts.append("    </div>")
 
+    # API Docs navigation (collapsible, collapsed by default)
+    if all_tests_nav and all_tests_nav.get('api_docs'):
+        api_docs = all_tests_nav['api_docs']
+        parts.append("    <div class='sidebar-section'>")
+        parts.append(f"      <div class='sidebar-title api collapsed' id='api-docs-title' onclick=\"toggleSection('api-docs')\"><span class='arrow'>▼</span> API Docs <span class='count'>{len(api_docs)}</span></div>")
+        parts.append("      <div class='sidebar-list collapsed' id='api-docs-list'>")
+        parts.append("        <ul>")
+        for d in api_docs:
+            parts.append(f"          <li><a href='../{d['path']}' class='nav-link' title='{escape_html(d['name'])}'>{escape_html(d['name'])}</a></li>")
+        parts.append("        </ul>")
+        parts.append("      </div>")
+        parts.append("    </div>")
+
     parts.append("  </nav>")
     return parts
 
@@ -204,7 +230,8 @@ def generate_index_sidebar(
     flow_files: list[dict],
     screen_files: list[dict],
     has_mermaid_diagram: bool = False,
-    document_files: list[dict] | None = None
+    document_files: list[dict] | None = None,
+    api_doc_files: list[dict] | None = None
 ) -> list[str]:
     """
     Generate sidebar HTML for index page.
@@ -215,6 +242,7 @@ def generate_index_sidebar(
         screen_files: List of screen test file dicts
         has_mermaid_diagram: Whether a Mermaid diagram was generated
         document_files: List of document file dicts
+        api_doc_files: List of API documentation file dicts
 
     Returns:
         List of HTML strings for the sidebar
@@ -260,6 +288,18 @@ def generate_index_sidebar(
         parts.append("      <div class='sidebar-list collapsed' id='sidebar-documents-list'>")
         parts.append("        <ul>")
         for d in document_files:
+            parts.append(f"          <li><a href='{d['path']}' title='{escape_html(d['name'])}'>{escape_html(d['name'])}</a></li>")
+        parts.append("        </ul>")
+        parts.append("      </div>")
+        parts.append("    </div>")
+
+    # Sidebar - API Docs (collapsible, starts collapsed)
+    if api_doc_files:
+        parts.append("    <div class='sidebar-section'>")
+        parts.append(f"      <div class='sidebar-title api collapsed' id='sidebar-api-docs-title' onclick=\"toggleSidebar('api-docs')\"><span class='arrow'>▼</span>API Docs <span class='count'>{len(api_doc_files)}</span></div>")
+        parts.append("      <div class='sidebar-list collapsed' id='sidebar-api-docs-list'>")
+        parts.append("        <ul>")
+        for d in api_doc_files:
             parts.append(f"          <li><a href='{d['path']}' title='{escape_html(d['name'])}'>{escape_html(d['name'])}</a></li>")
         parts.append("        </ul>")
         parts.append("      </div>")

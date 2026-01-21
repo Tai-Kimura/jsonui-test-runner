@@ -12,6 +12,9 @@ from .html import (
     generate_flow_html,
     generate_index_html,
     generate_document_html,
+    is_swagger_file,
+    parse_swagger_file,
+    generate_swagger_html,
 )
 from .html.sidebar import escape_html
 from .markdown import generate_markdown, generate_schema_markdown
@@ -563,7 +566,8 @@ def generate_schema_reference(output_path: Path | None = None, format: str = "ma
 def generate_html_directory(
     input_dir: Path,
     output_dir: Path,
-    title: str = "JsonUI Test Documentation"
+    title: str = "JsonUI Test Documentation",
+    docs_dir: Path | None = None
 ) -> list[dict]:
     """
     Generate HTML documentation for all test files in a directory.
@@ -574,6 +578,7 @@ def generate_html_directory(
         input_dir: Directory containing .test.json files
         output_dir: Directory to output HTML files
         title: Title for the index page
+        docs_dir: Optional directory containing additional documentation (including Swagger files)
 
     Returns:
         List of generated file info dicts with 'name', 'path', 'type', 'cases'
@@ -643,11 +648,33 @@ def generate_html_directory(
                 'path': f['document'],  # Path to document page
             })
 
+    # Find and process Swagger/OpenAPI files from docs_dir
+    api_doc_files = []
+    if docs_dir and Path(docs_dir).exists():
+        docs_path = Path(docs_dir)
+        for json_file in docs_path.rglob("*.json"):
+            if is_swagger_file(json_file):
+                swagger_data = parse_swagger_file(json_file)
+                if swagger_data:
+                    info = swagger_data.get('info', {})
+                    api_name = info.get('title', json_file.stem)
+                    api_desc = info.get('description', '')
+                    # Output path: api/<filename>.html
+                    html_rel_path = f"api/{json_file.stem}.html"
+                    api_doc_files.append({
+                        'name': api_name,
+                        'description': api_desc[:100] + '...' if len(api_desc) > 100 else api_desc,
+                        'path': html_rel_path,
+                        'source_file': json_file,
+                        'swagger_data': swagger_data,
+                    })
+
     # Build navigation data for sidebar
     all_tests_nav = {
         'screens': [{'name': f['name'], 'path': str(f['path'])} for f in file_infos if f['type'] == 'screen'],
         'flows': [{'name': f['name'], 'path': str(f['path'])} for f in file_infos if f['type'] == 'flow'],
         'documents': document_files,
+        'api_docs': [{'name': d['name'], 'path': d['path']} for d in api_doc_files],
     }
 
     # Second pass: generate HTML with navigation
@@ -702,10 +729,13 @@ def generate_html_directory(
             print(f"  Warning: Could not generate Mermaid diagram: {e}")
 
     # Generate index.html
-    generate_index_html(output_path, generated_files, title, mermaid_generated, document_files)
+    generate_index_html(output_path, generated_files, title, mermaid_generated, document_files, api_doc_files)
 
     # Generate document pages (HTML with sidebar) for each document
     _generate_document_pages(input_path, output_path, generated_files, all_tests_nav)
+
+    # Generate Swagger/OpenAPI documentation pages
+    _generate_swagger_pages(output_path, api_doc_files, all_tests_nav)
 
     return generated_files
 
@@ -771,3 +801,48 @@ def _generate_document_pages(
 
         except Exception as e:
             print(f"    Error processing document {doc_path}: {e}")
+
+
+def _generate_swagger_pages(
+    output_path: Path,
+    api_doc_files: list[dict],
+    all_tests_nav: dict
+) -> None:
+    """
+    Generate Swagger/OpenAPI documentation pages with sidebar.
+
+    Args:
+        output_path: Output directory for generated HTML
+        api_doc_files: List of API documentation file dicts
+        all_tests_nav: Navigation data for sidebar
+    """
+    if not api_doc_files:
+        return
+
+    print("  Generating API documentation pages...")
+
+    for api_doc in api_doc_files:
+        try:
+            swagger_data = api_doc.get('swagger_data')
+            if not swagger_data:
+                continue
+
+            html_rel_path = api_doc['path']
+            output_doc_path = output_path / html_rel_path
+            output_doc_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Generate Swagger HTML page with sidebar
+            html_content = generate_swagger_html(
+                swagger_data=swagger_data,
+                title=api_doc['name'],
+                all_tests_nav=all_tests_nav,
+                current_doc_path=html_rel_path
+            )
+
+            with open(output_doc_path, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+
+            print(f"    Generated: {output_doc_path}")
+
+        except Exception as e:
+            print(f"    Error processing API doc {api_doc.get('name', 'unknown')}: {e}")

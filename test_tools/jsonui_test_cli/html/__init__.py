@@ -14,6 +14,11 @@ from .screen import generate_screen_html
 from .flow import generate_flow_html
 from .index import generate_index_html
 from .document import generate_document_html
+from .swagger import (
+    is_swagger_file,
+    parse_swagger_file,
+    generate_swagger_html,
+)
 
 __all__ = [
     "get_screen_styles",
@@ -26,4 +31,7 @@ __all__ = [
     "generate_flow_html",
     "generate_index_html",
     "generate_document_html",
+    "is_swagger_file",
+    "parse_swagger_file",
+    "generate_swagger_html",
 ]
