@@ -1,0 +1,419 @@
+"""Schema-only documentation page HTML generation for OpenAPI files without paths."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from .sidebar import escape_html
+
+
+def has_api_paths(swagger_data: dict) -> bool:
+    """
+    Check if Swagger/OpenAPI data has actual API paths.
+
+    Args:
+        swagger_data: Parsed Swagger/OpenAPI data
+
+    Returns:
+        True if the file has API paths, False if schema-only
+    """
+    paths = swagger_data.get('paths', {})
+    return bool(paths)
+
+
+def _get_relative_root(doc_path: str) -> str:
+    """Calculate relative path to root from document path."""
+    depth = len(Path(doc_path).parent.parts)
+    if depth == 0:
+        return "./"
+    return "../" * depth
+
+
+def generate_schema_html(
+    swagger_data: dict,
+    title: str | None = None,
+    current_doc_path: str | None = None
+) -> str:
+    """
+    Generate HTML documentation page for schema-only OpenAPI files.
+
+    Args:
+        swagger_data: Parsed Swagger/OpenAPI data
+        title: Optional title override
+        current_doc_path: Current document's relative path
+
+    Returns:
+        Complete HTML string with schema documentation
+    """
+    info = swagger_data.get('info', {})
+    doc_title = title or info.get('title', 'Schema Documentation')
+    doc_description = info.get('description', '')
+
+    schemas = swagger_data.get('components', {}).get('schemas', {})
+
+    html_parts = _get_html_header(doc_title)
+
+    rel_root = _get_relative_root(current_doc_path) if current_doc_path else "../"
+
+    # Back link header
+    html_parts.extend([
+        "  <div class='back-header'>",
+        f"    <a href='{rel_root}index.html' class='back-link'>&larr; Back to Index</a>",
+        "  </div>",
+    ])
+
+    # Main content
+    html_parts.extend([
+        "  <main class='main-content'>",
+        f"    <h1>{escape_html(doc_title)}</h1>",
+    ])
+
+    if doc_description:
+        html_parts.append(f"    <p class='description'>{escape_html(doc_description)}</p>")
+
+    # Render each schema
+    for schema_name, schema_def in schemas.items():
+        html_parts.extend(_render_schema(schema_name, schema_def))
+
+    html_parts.extend([
+        "  </main>",
+        "</body>",
+        "</html>",
+    ])
+
+    return '\n'.join(html_parts)
+
+
+def _render_schema(schema_name: str, schema_def: dict) -> list[str]:
+    """Render a single schema definition."""
+    parts = []
+
+    schema_type = schema_def.get('type', 'object')
+    schema_desc = schema_def.get('description', '')
+    required_fields = schema_def.get('required', [])
+
+    # Check if this is an enum schema
+    if schema_type == 'string' and 'enum' in schema_def:
+        parts.extend(_render_enum_schema(schema_name, schema_def))
+        return parts
+
+    parts.extend([
+        f"    <div class='schema' id='{escape_html(schema_name)}'>",
+        f"      <h2 class='schema-name'>{escape_html(schema_name)}</h2>",
+    ])
+
+    if schema_desc:
+        parts.append(f"      <p class='schema-description'>{escape_html(schema_desc)}</p>")
+
+    # Custom validations
+    custom_validations = schema_def.get('x-custom-validations', [])
+    if custom_validations:
+        parts.extend(_render_custom_validations(custom_validations))
+
+    # Properties table
+    properties = schema_def.get('properties', {})
+    if properties:
+        parts.extend([
+            "      <table class='properties-table'>",
+            "        <thead>",
+            "          <tr>",
+            "            <th>Field</th>",
+            "            <th>Type</th>",
+            "            <th>Description</th>",
+            "            <th>Constraints</th>",
+            "          </tr>",
+            "        </thead>",
+            "        <tbody>",
+        ])
+
+        for prop_name, prop_def in properties.items():
+            is_required = prop_name in required_fields
+            parts.extend(_render_property_row(prop_name, prop_def, is_required))
+
+        parts.extend([
+            "        </tbody>",
+            "      </table>",
+        ])
+
+    parts.append("    </div>")
+    return parts
+
+
+def _render_enum_schema(schema_name: str, schema_def: dict) -> list[str]:
+    """Render an enum schema definition."""
+    parts = []
+
+    enum_values = schema_def.get('enum', [])
+    enum_mapping = schema_def.get('x-enum-values', {})
+    description = schema_def.get('description', '')
+
+    parts.extend([
+        f"    <div class='schema enum-schema' id='{escape_html(schema_name)}'>",
+        f"      <h3 class='enum-name'>{escape_html(schema_name)}</h3>",
+    ])
+
+    if description:
+        parts.append(f"      <p class='enum-description'>{escape_html(description)}</p>")
+
+    parts.extend([
+        "      <table class='enum-table'>",
+        "        <thead>",
+        "          <tr>",
+        "            <th>Value</th>",
+        "            <th>Code</th>",
+        "          </tr>",
+        "        </thead>",
+        "        <tbody>",
+    ])
+
+    for val in enum_values:
+        code = enum_mapping.get(val, '-')
+        parts.append(f"          <tr><td><code>{escape_html(str(val))}</code></td><td>{escape_html(str(code))}</td></tr>")
+
+    parts.extend([
+        "        </tbody>",
+        "      </table>",
+        "    </div>",
+    ])
+
+    return parts
+
+
+def _render_custom_validations(validations: list[dict]) -> list[str]:
+    """Render custom validations section."""
+    parts = [
+        "      <div class='custom-validations'>",
+        "        <h4>Custom Validations</h4>",
+        "        <ul>",
+    ]
+
+    for v in validations:
+        name = v.get('name', '')
+        desc = v.get('description', '')
+        conditions = v.get('conditions', '')
+
+        validation_text = f"<strong>{escape_html(name)}</strong>"
+        if conditions:
+            validation_text += f" <span class='conditions'>({escape_html(conditions)})</span>"
+        if desc:
+            validation_text += f": {escape_html(desc)}"
+
+        parts.append(f"          <li>{validation_text}</li>")
+
+    parts.extend([
+        "        </ul>",
+        "      </div>",
+    ])
+
+    return parts
+
+
+def _render_property_row(prop_name: str, prop_def: dict, is_required: bool) -> list[str]:
+    """Render a single property row in the table."""
+    parts = []
+
+    prop_type = prop_def.get('type', 'any')
+    prop_format = prop_def.get('format', '')
+    prop_desc = prop_def.get('description', '')
+    nullable = prop_def.get('nullable', False)
+
+    # Build type string
+    type_str = prop_type
+    if prop_format:
+        type_str = f"{prop_type} ({prop_format})"
+    if nullable:
+        type_str += " | null"
+
+    # Build constraints
+    constraints = []
+    if is_required:
+        constraints.append("<span class='required'>required</span>")
+    if 'maxLength' in prop_def:
+        constraints.append(f"maxLength: {prop_def['maxLength']}")
+    if 'minLength' in prop_def:
+        constraints.append(f"minLength: {prop_def['minLength']}")
+    if 'minimum' in prop_def:
+        constraints.append(f"min: {prop_def['minimum']}")
+    if 'maximum' in prop_def:
+        constraints.append(f"max: {prop_def['maximum']}")
+    if 'pattern' in prop_def:
+        pattern = prop_def['pattern']
+        # Escape HTML in pattern
+        constraints.append(f"pattern: <code>{escape_html(pattern)}</code>")
+    if 'enum' in prop_def:
+        enum_vals = ', '.join(str(v) for v in prop_def['enum'])
+        constraints.append(f"enum: [{escape_html(enum_vals)}]")
+
+    constraints_str = '<br>'.join(constraints) if constraints else '-'
+
+    required_class = ' class="required-row"' if is_required else ''
+    parts.append(f"          <tr{required_class}>")
+    parts.append(f"            <td><code>{escape_html(prop_name)}</code></td>")
+    parts.append(f"            <td><code>{escape_html(type_str)}</code></td>")
+    parts.append(f"            <td>{escape_html(prop_desc)}</td>")
+    parts.append(f"            <td>{constraints_str}</td>")
+    parts.append("          </tr>")
+
+    return parts
+
+
+def _get_html_header(title: str) -> list[str]:
+    """Generate HTML header with styles for schema documentation."""
+    parts = [
+        "<!DOCTYPE html>",
+        "<html lang='ja'>",
+        "<head>",
+        "  <meta charset='UTF-8'>",
+        "  <meta name='viewport' content='width=device-width, initial-scale=1.0'>",
+        f"  <title>{escape_html(title)}</title>",
+        "  <style>",
+        "    * { margin: 0; padding: 0; box-sizing: border-box; }",
+        "    body {",
+        "      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;",
+        "      background: #f5f5f5;",
+        "      color: #333;",
+        "      line-height: 1.6;",
+        "    }",
+        "    .back-header {",
+        "      position: fixed;",
+        "      top: 0;",
+        "      left: 0;",
+        "      right: 0;",
+        "      z-index: 1000;",
+        "      background: #1a1a2e;",
+        "      padding: 10px 20px;",
+        "      border-bottom: 1px solid #333;",
+        "    }",
+        "    .back-header .back-link {",
+        "      color: #4dabf7;",
+        "      text-decoration: none;",
+        "      font-size: 14px;",
+        "    }",
+        "    .back-header .back-link:hover {",
+        "      text-decoration: underline;",
+        "    }",
+        "    .main-content {",
+        "      max-width: 1200px;",
+        "      margin: 0 auto;",
+        "      padding: 60px 20px 40px;",
+        "    }",
+        "    h1 {",
+        "      font-size: 28px;",
+        "      margin-bottom: 10px;",
+        "      color: #1a1a2e;",
+        "    }",
+        "    .description {",
+        "      color: #666;",
+        "      margin-bottom: 30px;",
+        "    }",
+        "    .schema {",
+        "      background: white;",
+        "      border-radius: 8px;",
+        "      padding: 20px;",
+        "      margin-bottom: 20px;",
+        "      box-shadow: 0 2px 4px rgba(0,0,0,0.1);",
+        "    }",
+        "    .schema-name {",
+        "      font-size: 22px;",
+        "      color: #2c5282;",
+        "      margin-bottom: 8px;",
+        "      padding-bottom: 8px;",
+        "      border-bottom: 2px solid #e2e8f0;",
+        "    }",
+        "    .schema-description {",
+        "      color: #555;",
+        "      margin-bottom: 15px;",
+        "    }",
+        "    .properties-table {",
+        "      width: 100%;",
+        "      border-collapse: collapse;",
+        "      font-size: 14px;",
+        "    }",
+        "    .properties-table th {",
+        "      background: #f8f9fa;",
+        "      padding: 12px;",
+        "      text-align: left;",
+        "      border-bottom: 2px solid #dee2e6;",
+        "      font-weight: 600;",
+        "    }",
+        "    .properties-table td {",
+        "      padding: 10px 12px;",
+        "      border-bottom: 1px solid #eee;",
+        "      vertical-align: top;",
+        "    }",
+        "    .properties-table tr:hover {",
+        "      background: #f8f9fa;",
+        "    }",
+        "    .properties-table code {",
+        "      background: #e9ecef;",
+        "      padding: 2px 6px;",
+        "      border-radius: 3px;",
+        "      font-size: 13px;",
+        "    }",
+        "    .required {",
+        "      color: #e53e3e;",
+        "      font-weight: 600;",
+        "      font-size: 11px;",
+        "    }",
+        "    .required-row td:first-child code {",
+        "      border-left: 3px solid #e53e3e;",
+        "      padding-left: 8px;",
+        "    }",
+        "    .enum-schema {",
+        "      background: #f0f9ff;",
+        "      border-left: 4px solid #3182ce;",
+        "    }",
+        "    .enum-name {",
+        "      font-size: 16px;",
+        "      color: #3182ce;",
+        "      margin-bottom: 8px;",
+        "    }",
+        "    .enum-description {",
+        "      color: #555;",
+        "      font-size: 13px;",
+        "      margin-bottom: 10px;",
+        "    }",
+        "    .enum-table {",
+        "      width: auto;",
+        "      min-width: 200px;",
+        "      border-collapse: collapse;",
+        "      font-size: 13px;",
+        "    }",
+        "    .enum-table th {",
+        "      background: #e2e8f0;",
+        "      padding: 8px 12px;",
+        "      text-align: left;",
+        "    }",
+        "    .enum-table td {",
+        "      padding: 6px 12px;",
+        "      border-bottom: 1px solid #e2e8f0;",
+        "    }",
+        "    .custom-validations {",
+        "      background: #fffbeb;",
+        "      border: 1px solid #fcd34d;",
+        "      border-radius: 6px;",
+        "      padding: 12px 15px;",
+        "      margin-bottom: 15px;",
+        "    }",
+        "    .custom-validations h4 {",
+        "      color: #92400e;",
+        "      font-size: 14px;",
+        "      margin-bottom: 8px;",
+        "    }",
+        "    .custom-validations ul {",
+        "      margin-left: 20px;",
+        "      font-size: 13px;",
+        "    }",
+        "    .custom-validations li {",
+        "      margin-bottom: 4px;",
+        "    }",
+        "    .custom-validations .conditions {",
+        "      color: #666;",
+        "      font-style: italic;",
+        "    }",
+        "  </style>",
+        "</head>",
+        "<body>",
+    ]
+    return parts

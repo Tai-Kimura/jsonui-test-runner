@@ -15,6 +15,8 @@ from .html import (
     is_swagger_file,
     parse_swagger_file,
     generate_swagger_html,
+    has_api_paths,
+    generate_schema_html,
 )
 from .html.sidebar import escape_html
 from .markdown import generate_markdown, generate_schema_markdown
@@ -827,7 +829,9 @@ def _generate_swagger_pages(
     all_tests_nav: dict
 ) -> None:
     """
-    Generate Swagger/OpenAPI documentation pages with sidebar.
+    Generate Swagger/OpenAPI documentation pages.
+
+    Uses Redoc for files with API paths, schema HTML for schema-only files.
 
     Args:
         output_path: Output directory for generated HTML
@@ -849,13 +853,22 @@ def _generate_swagger_pages(
             output_doc_path = output_path / html_rel_path
             output_doc_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Generate Swagger HTML page with sidebar
-            html_content = generate_swagger_html(
-                swagger_data=swagger_data,
-                title=api_doc['name'],
-                all_tests_nav=all_tests_nav,
-                current_doc_path=html_rel_path
-            )
+            # Check if this has API paths or is schema-only
+            if has_api_paths(swagger_data):
+                # Use Redoc for API documentation
+                html_content = generate_swagger_html(
+                    swagger_data=swagger_data,
+                    title=api_doc['name'],
+                    all_tests_nav=all_tests_nav,
+                    current_doc_path=html_rel_path
+                )
+            else:
+                # Use schema HTML for schema-only files (e.g., DB models)
+                html_content = generate_schema_html(
+                    swagger_data=swagger_data,
+                    title=api_doc['name'],
+                    current_doc_path=html_rel_path
+                )
 
             with open(output_doc_path, 'w', encoding='utf-8') as f:
                 f.write(html_content)

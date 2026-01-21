@@ -19,6 +19,10 @@ from .swagger import (
     parse_swagger_file,
     generate_swagger_html,
 )
+from .schema import (
+    has_api_paths,
+    generate_schema_html,
+)
 
 __all__ = [
     "get_screen_styles",
@@ -34,4 +38,6 @@ __all__ = [
     "is_swagger_file",
     "parse_swagger_file",
     "generate_swagger_html",
+    "has_api_paths",
+    "generate_schema_html",
 ]
