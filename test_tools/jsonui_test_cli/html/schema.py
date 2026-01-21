@@ -158,6 +158,7 @@ def _render_schema(schema_name: str, schema_def: dict) -> list[str]:
             "            <th>Field</th>",
             "            <th>Type</th>",
             "            <th>Description</th>",
+            "            <th>Default</th>",
             "            <th>Constraints</th>",
             "          </tr>",
             "        </thead>",
@@ -262,6 +263,19 @@ def _render_property_row(prop_name: str, prop_def: dict, is_required: bool) -> l
     if nullable:
         type_str += " | null"
 
+    # Build default value
+    default_str = '-'
+    if 'default' in prop_def:
+        default_val = prop_def['default']
+        if default_val is None:
+            default_str = '<code>null</code>'
+        elif isinstance(default_val, bool):
+            default_str = f"<code>{str(default_val).lower()}</code>"
+        elif isinstance(default_val, str):
+            default_str = f"<code>{escape_html(default_val)}</code>"
+        else:
+            default_str = f"<code>{escape_html(str(default_val))}</code>"
+
     # Build constraints
     constraints = []
     if is_required:
@@ -288,6 +302,7 @@ def _render_property_row(prop_name: str, prop_def: dict, is_required: bool) -> l
     parts.append(f"            <td><code>{escape_html(prop_name)}</code></td>")
     parts.append(f"            <td><code>{escape_html(type_str)}</code></td>")
     parts.append(f"            <td>{escape_html(prop_desc)}</td>")
+    parts.append(f"            <td>{default_str}</td>")
     parts.append(f"            <td>{constraints_str}</td>")
     parts.append("          </tr>")
 
