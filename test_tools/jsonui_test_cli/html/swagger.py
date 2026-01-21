@@ -168,13 +168,23 @@ def _get_method_class(method: str) -> str:
     return method_classes.get(method.lower(), 'method-other')
 
 
-def _render_schema(schema: dict, indent: int = 0) -> list[str]:
-    """Render JSON schema as HTML."""
+def _render_schema(schema: dict, indent: int = 0, max_depth: int = 5) -> list[str]:
+    """
+    Render JSON schema as HTML with recursive nested object support.
+
+    Args:
+        schema: JSON schema dict
+        indent: Current indentation level
+        max_depth: Maximum recursion depth to prevent infinite loops
+    """
     parts = []
     indent_str = "  " * indent
 
     if not schema:
         return [f"{indent_str}<span class='schema-type'>any</span>"]
+
+    if max_depth <= 0:
+        return [f"{indent_str}<span class='schema-type'>...</span>"]
 
     schema_type = schema.get('type', '')
 
@@ -188,12 +198,44 @@ def _render_schema(schema: dict, indent: int = 0) -> list[str]:
             parts.append(f"{indent_str}<span class='schema-type'>object</span> {{")
             for prop_name, prop_schema in props.items():
                 req_marker = '<span class="required">*</span>' if prop_name in required else ''
-                prop_type = prop_schema.get('type', 'any')
-                if '$ref' in prop_schema:
-                    prop_type = prop_schema['$ref'].split('/')[-1]
+                nested_type = prop_schema.get('type', 'any')
                 desc = prop_schema.get('description', '')
                 desc_html = f" <span class='prop-desc'>// {escape_html(desc)}</span>" if desc else ""
-                parts.append(f"{indent_str}  <span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-type'>{escape_html(prop_type)}</span>{desc_html}")
+
+                if '$ref' in prop_schema:
+                    # Reference type
+                    prop_type = prop_schema['$ref'].split('/')[-1]
+                    parts.append(f"{indent_str}  <span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-ref'>{escape_html(prop_type)}</span>{desc_html}")
+                elif nested_type == 'object' and prop_schema.get('properties'):
+                    # Nested object - render recursively
+                    parts.append(f"{indent_str}  <span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-type'>object</span> {{{desc_html}")
+                    nested_props = prop_schema.get('properties', {})
+                    nested_required = prop_schema.get('required', [])
+                    for nested_name, nested_schema in nested_props.items():
+                        nested_parts = _render_nested_property(nested_name, nested_schema, nested_required, indent + 2, max_depth - 1)
+                        parts.extend(nested_parts)
+                    parts.append(f"{indent_str}  }}")
+                elif nested_type == 'array':
+                    # Array type - check for nested items
+                    items = prop_schema.get('items', {})
+                    item_type = items.get('type', 'any')
+                    if '$ref' in items:
+                        item_type = items['$ref'].split('/')[-1]
+                        parts.append(f"{indent_str}  <span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-type'>array</span>[<span class='schema-ref'>{escape_html(item_type)}</span>]{desc_html}")
+                    elif item_type == 'object' and items.get('properties'):
+                        # Array of objects - render item structure
+                        parts.append(f"{indent_str}  <span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-type'>array</span>[<span class='schema-type'>object</span> {{{desc_html}")
+                        item_props = items.get('properties', {})
+                        item_required = items.get('required', [])
+                        for item_name, item_schema in item_props.items():
+                            item_parts = _render_nested_property(item_name, item_schema, item_required, indent + 2, max_depth - 1)
+                            parts.extend(item_parts)
+                        parts.append(f"{indent_str}  }}]")
+                    else:
+                        parts.append(f"{indent_str}  <span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-type'>array</span>[<span class='schema-type'>{escape_html(item_type)}</span>]{desc_html}")
+                else:
+                    # Simple type
+                    parts.append(f"{indent_str}  <span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-type'>{escape_html(nested_type)}</span>{desc_html}")
             parts.append(f"{indent_str}}}")
         else:
             parts.append(f"{indent_str}<span class='schema-type'>object</span>")
@@ -202,7 +244,18 @@ def _render_schema(schema: dict, indent: int = 0) -> list[str]:
         item_type = items.get('type', 'any')
         if '$ref' in items:
             item_type = items['$ref'].split('/')[-1]
-        parts.append(f"{indent_str}<span class='schema-type'>array</span>[<span class='schema-type'>{escape_html(item_type)}</span>]")
+            parts.append(f"{indent_str}<span class='schema-type'>array</span>[<span class='schema-ref'>{escape_html(item_type)}</span>]")
+        elif item_type == 'object' and items.get('properties'):
+            # Array of objects at top level
+            parts.append(f"{indent_str}<span class='schema-type'>array</span>[<span class='schema-type'>object</span> {{")
+            item_props = items.get('properties', {})
+            item_required = items.get('required', [])
+            for item_name, item_schema in item_props.items():
+                item_parts = _render_nested_property(item_name, item_schema, item_required, indent + 1, max_depth - 1)
+                parts.extend(item_parts)
+            parts.append(f"{indent_str}}}]")
+        else:
+            parts.append(f"{indent_str}<span class='schema-type'>array</span>[<span class='schema-type'>{escape_html(item_type)}</span>]")
     else:
         enum = schema.get('enum')
         if enum:
@@ -210,6 +263,53 @@ def _render_schema(schema: dict, indent: int = 0) -> list[str]:
             parts.append(f"{indent_str}<span class='schema-enum'>{escape_html(enum_str)}</span>")
         else:
             parts.append(f"{indent_str}<span class='schema-type'>{escape_html(schema_type or 'any')}</span>")
+
+    return parts
+
+
+def _render_nested_property(prop_name: str, prop_schema: dict, required: list, indent: int, max_depth: int) -> list[str]:
+    """Render a nested property within an object schema."""
+    parts = []
+    indent_str = "  " * indent
+
+    if max_depth <= 0:
+        return [f"{indent_str}<span class='prop-name'>{escape_html(prop_name)}</span>: <span class='schema-type'>...</span>"]
+
+    req_marker = '<span class="required">*</span>' if prop_name in required else ''
+    prop_type = prop_schema.get('type', 'any')
+    desc = prop_schema.get('description', '')
+    desc_html = f" <span class='prop-desc'>// {escape_html(desc)}</span>" if desc else ""
+
+    if '$ref' in prop_schema:
+        ref_type = prop_schema['$ref'].split('/')[-1]
+        parts.append(f"{indent_str}<span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-ref'>{escape_html(ref_type)}</span>{desc_html}")
+    elif prop_type == 'object' and prop_schema.get('properties'):
+        # Nested object
+        parts.append(f"{indent_str}<span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-type'>object</span> {{{desc_html}")
+        nested_props = prop_schema.get('properties', {})
+        nested_required = prop_schema.get('required', [])
+        for nested_name, nested_schema in nested_props.items():
+            nested_parts = _render_nested_property(nested_name, nested_schema, nested_required, indent + 1, max_depth - 1)
+            parts.extend(nested_parts)
+        parts.append(f"{indent_str}}}")
+    elif prop_type == 'array':
+        items = prop_schema.get('items', {})
+        item_type = items.get('type', 'any')
+        if '$ref' in items:
+            item_type = items['$ref'].split('/')[-1]
+            parts.append(f"{indent_str}<span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-type'>array</span>[<span class='schema-ref'>{escape_html(item_type)}</span>]{desc_html}")
+        elif item_type == 'object' and items.get('properties'):
+            parts.append(f"{indent_str}<span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-type'>array</span>[<span class='schema-type'>object</span> {{{desc_html}")
+            item_props = items.get('properties', {})
+            item_required = items.get('required', [])
+            for item_name, item_schema in item_props.items():
+                item_parts = _render_nested_property(item_name, item_schema, item_required, indent + 1, max_depth - 1)
+                parts.extend(item_parts)
+            parts.append(f"{indent_str}}}]")
+        else:
+            parts.append(f"{indent_str}<span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-type'>array</span>[<span class='schema-type'>{escape_html(item_type)}</span>]{desc_html}")
+    else:
+        parts.append(f"{indent_str}<span class='prop-name'>{escape_html(prop_name)}</span>{req_marker}: <span class='schema-type'>{escape_html(prop_type)}</span>{desc_html}")
 
     return parts
 
