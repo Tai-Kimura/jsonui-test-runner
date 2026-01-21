@@ -86,6 +86,7 @@ def generate_schema_html(
     info = swagger_data.get('info', {})
     doc_title = title or info.get('title', 'Schema Documentation')
     doc_description = info.get('description', '')
+    table_name = info.get('x-table-name', '')
 
     schemas = swagger_data.get('components', {}).get('schemas', {})
 
@@ -101,6 +102,9 @@ def generate_schema_html(
         "  <main class='main-content'>",
         f"    <h1>{escape_html(doc_title)}</h1>",
     ])
+
+    if table_name:
+        html_parts.append(f"    <p class='table-name'>Table: <code>{escape_html(table_name)}</code></p>")
 
     if doc_description:
         html_parts.append(f"    <p class='description'>{escape_html(doc_description)}</p>")
@@ -369,7 +373,18 @@ def _get_html_header(title: str) -> list[str]:
         "      border-bottom: 2px solid #007AFF;",
         "      padding-bottom: 10px;",
         "      margin-top: 0;",
-        "      margin-bottom: 20px;",
+        "      margin-bottom: 10px;",
+        "    }",
+        "    .table-name {",
+        "      color: #666;",
+        "      font-size: 0.9em;",
+        "      margin-bottom: 10px;",
+        "    }",
+        "    .table-name code {",
+        "      background: #e9ecef;",
+        "      padding: 2px 6px;",
+        "      border-radius: 3px;",
+        "      font-family: 'SF Mono', Monaco, Consolas, monospace;",
         "    }",
         "    .description {",
         "      color: #666;",
