@@ -231,7 +231,7 @@ def generate_index_sidebar(
     screen_files: list[dict],
     has_mermaid_diagram: bool = False,
     document_files: list[dict] | None = None,
-    api_doc_files: list[dict] | None = None
+    api_doc_categories: dict[str, list[dict]] | None = None
 ) -> list[str]:
     """
     Generate sidebar HTML for index page.
@@ -242,7 +242,7 @@ def generate_index_sidebar(
         screen_files: List of screen test file dicts
         has_mermaid_diagram: Whether a Mermaid diagram was generated
         document_files: List of document file dicts
-        api_doc_files: List of API documentation file dicts
+        api_doc_categories: Dict of category name -> list of API doc file dicts
 
     Returns:
         List of HTML strings for the sidebar
@@ -293,17 +293,20 @@ def generate_index_sidebar(
         parts.append("      </div>")
         parts.append("    </div>")
 
-    # Sidebar - API Docs (collapsible, starts collapsed)
-    if api_doc_files:
-        parts.append("    <div class='sidebar-section'>")
-        parts.append(f"      <div class='sidebar-title api collapsed' id='sidebar-api-docs-title' onclick=\"toggleSidebar('api-docs')\"><span class='arrow'>▼</span>API Docs <span class='count'>{len(api_doc_files)}</span></div>")
-        parts.append("      <div class='sidebar-list collapsed' id='sidebar-api-docs-list'>")
-        parts.append("        <ul>")
-        for d in api_doc_files:
-            parts.append(f"          <li><a href='{d['path']}' title='{escape_html(d['name'])}'>{escape_html(d['name'])}</a></li>")
-        parts.append("        </ul>")
-        parts.append("      </div>")
-        parts.append("    </div>")
+    # Sidebar - API Doc categories (one section per directory)
+    if api_doc_categories:
+        for category_name, category_docs in api_doc_categories.items():
+            display_name = category_name.upper() if len(category_name) <= 3 else category_name.title()
+            sidebar_id = f"sidebar-api-{category_name}"
+            parts.append("    <div class='sidebar-section'>")
+            parts.append(f"      <div class='sidebar-title api collapsed' id='{sidebar_id}-title' onclick=\"toggleSidebar('api-{category_name}')\"><span class='arrow'>▼</span>{display_name} <span class='count'>{len(category_docs)}</span></div>")
+            parts.append(f"      <div class='sidebar-list collapsed' id='{sidebar_id}-list'>")
+            parts.append("        <ul>")
+            for d in category_docs:
+                parts.append(f"          <li><a href='{d['path']}' title='{escape_html(d['name'])}'>{escape_html(d['name'])}</a></li>")
+            parts.append("        </ul>")
+            parts.append("      </div>")
+            parts.append("    </div>")
 
     parts.append("  </nav>")
     return parts

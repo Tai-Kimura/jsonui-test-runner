@@ -257,25 +257,30 @@ def cmd_generate_html(args):
     input_dir = Path(args.input)
     output_dir = Path(args.output) if args.output else Path("html")
     title = args.title or "JsonUI Test Documentation"
-    docs_dir = Path(args.docs) if args.docs else None
+
+    # Process multiple --docs options
+    docs_dirs = []
+    if args.docs:
+        for doc_path in args.docs:
+            doc_dir = Path(doc_path)
+            if not doc_dir.exists():
+                print(f"Error: Docs directory not found: {doc_dir}", file=sys.stderr)
+                return 1
+            docs_dirs.append(doc_dir)
 
     if not input_dir.exists():
         print(f"Error: Input directory not found: {input_dir}", file=sys.stderr)
         return 1
 
-    if docs_dir and not docs_dir.exists():
-        print(f"Error: Docs directory not found: {docs_dir}", file=sys.stderr)
-        return 1
-
     print(f"Generating HTML documentation...")
     print(f"  Input: {input_dir}")
     print(f"  Output: {output_dir}")
-    if docs_dir:
-        print(f"  Docs: {docs_dir}")
+    for doc_dir in docs_dirs:
+        print(f"  Docs: {doc_dir}")
     print()
 
     try:
-        files = generate_html_directory(input_dir, output_dir, title, docs_dir)
+        files = generate_html_directory(input_dir, output_dir, title, docs_dirs if docs_dirs else None)
         print()
         print(f"Generated {len(files)} HTML files")
         print(f"Open {output_dir}/index.html to view documentation")
@@ -581,7 +586,9 @@ def main():
     )
     gen_html_parser.add_argument(
         "-d", "--docs",
-        help="Directory containing additional documentation (Swagger/OpenAPI files, etc.)"
+        action="append",
+        metavar="DIR",
+        help="Directory containing OpenAPI/Swagger files (can be specified multiple times, e.g., -d api -d db)"
     )
 
     # Generate mermaid subcommand

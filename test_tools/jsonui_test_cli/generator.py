@@ -567,7 +567,7 @@ def generate_html_directory(
     input_dir: Path,
     output_dir: Path,
     title: str = "JsonUI Test Documentation",
-    docs_dir: Path | None = None
+    docs_dirs: list[Path] | None = None
 ) -> list[dict]:
     """
     Generate HTML documentation for all test files in a directory.
@@ -578,7 +578,7 @@ def generate_html_directory(
         input_dir: Directory containing .test.json files
         output_dir: Directory to output HTML files
         title: Title for the index page
-        docs_dir: Optional directory containing additional documentation (including Swagger files)
+        docs_dirs: Optional list of directories containing OpenAPI/Swagger files
 
     Returns:
         List of generated file info dicts with 'name', 'path', 'type', 'cases'
@@ -648,33 +648,51 @@ def generate_html_directory(
                 'path': f['document'],  # Path to document page
             })
 
-    # Find and process Swagger/OpenAPI files from docs_dir
-    api_doc_files = []
-    if docs_dir and Path(docs_dir).exists():
-        docs_path = Path(docs_dir)
-        for json_file in docs_path.rglob("*.json"):
-            if is_swagger_file(json_file):
-                swagger_data = parse_swagger_file(json_file)
-                if swagger_data:
-                    info = swagger_data.get('info', {})
-                    api_name = info.get('title', json_file.stem)
-                    api_desc = info.get('description', '')
-                    # Output path: api/<filename>.html
-                    html_rel_path = f"api/{json_file.stem}.html"
-                    api_doc_files.append({
-                        'name': api_name,
-                        'description': api_desc[:100] + '...' if len(api_desc) > 100 else api_desc,
-                        'path': html_rel_path,
-                        'source_file': json_file,
-                        'swagger_data': swagger_data,
-                    })
+    # Find and process Swagger/OpenAPI files from docs_dirs
+    # Group by directory name for separate categories
+    api_doc_categories = {}  # category_name -> list of api_doc_files
+    all_api_doc_files = []
+
+    if docs_dirs:
+        for docs_dir in docs_dirs:
+            docs_path = Path(docs_dir)
+            if not docs_path.exists():
+                continue
+
+            # Use directory name as category (e.g., "api", "db")
+            category_name = docs_path.name
+
+            category_files = []
+            for json_file in sorted(docs_path.rglob("*.json")):
+                if is_swagger_file(json_file):
+                    swagger_data = parse_swagger_file(json_file)
+                    if swagger_data:
+                        info = swagger_data.get('info', {})
+                        api_name = info.get('title', json_file.stem)
+                        api_desc = info.get('description', '')
+                        # Output path: <category>/<filename>.html
+                        html_rel_path = f"{category_name}/{json_file.stem}.html"
+                        doc_info = {
+                            'name': api_name,
+                            'description': api_desc[:100] + '...' if len(api_desc) > 100 else api_desc,
+                            'path': html_rel_path,
+                            'source_file': json_file,
+                            'swagger_data': swagger_data,
+                            'category': category_name,
+                        }
+                        category_files.append(doc_info)
+                        all_api_doc_files.append(doc_info)
+
+            if category_files:
+                api_doc_categories[category_name] = category_files
 
     # Build navigation data for sidebar
     all_tests_nav = {
         'screens': [{'name': f['name'], 'path': str(f['path'])} for f in file_infos if f['type'] == 'screen'],
         'flows': [{'name': f['name'], 'path': str(f['path'])} for f in file_infos if f['type'] == 'flow'],
         'documents': document_files,
-        'api_docs': [{'name': d['name'], 'path': d['path']} for d in api_doc_files],
+        'api_docs': [{'name': d['name'], 'path': d['path']} for d in all_api_doc_files],
+        'api_doc_categories': {k: [{'name': d['name'], 'path': d['path']} for d in v] for k, v in api_doc_categories.items()},
     }
 
     # Second pass: generate HTML with navigation
@@ -729,13 +747,13 @@ def generate_html_directory(
             print(f"  Warning: Could not generate Mermaid diagram: {e}")
 
     # Generate index.html
-    generate_index_html(output_path, generated_files, title, mermaid_generated, document_files, api_doc_files)
+    generate_index_html(output_path, generated_files, title, mermaid_generated, document_files, api_doc_categories)
 
     # Generate document pages (HTML with sidebar) for each document
     _generate_document_pages(input_path, output_path, generated_files, all_tests_nav)
 
     # Generate Swagger/OpenAPI documentation pages
-    _generate_swagger_pages(output_path, api_doc_files, all_tests_nav)
+    _generate_swagger_pages(output_path, all_api_doc_files, all_tests_nav)
 
     return generated_files
 
