@@ -755,7 +755,7 @@ def generate_html_directory(
     _generate_document_pages(input_path, output_path, generated_files, all_tests_nav)
 
     # Generate Swagger/OpenAPI documentation pages
-    _generate_swagger_pages(output_path, all_api_doc_files, all_tests_nav)
+    _generate_swagger_pages(output_path, all_api_doc_files, all_tests_nav, api_doc_categories)
 
     return generated_files
 
@@ -826,7 +826,8 @@ def _generate_document_pages(
 def _generate_swagger_pages(
     output_path: Path,
     api_doc_files: list[dict],
-    all_tests_nav: dict
+    all_tests_nav: dict,
+    api_doc_categories: dict[str, list[dict]] | None = None
 ) -> None:
     """
     Generate Swagger/OpenAPI documentation pages.
@@ -837,6 +838,7 @@ def _generate_swagger_pages(
         output_path: Output directory for generated HTML
         api_doc_files: List of API documentation file dicts
         all_tests_nav: Navigation data for sidebar
+        api_doc_categories: Dict of category name -> list of docs for sidebar
     """
     if not api_doc_files:
         return
@@ -853,6 +855,10 @@ def _generate_swagger_pages(
             output_doc_path = output_path / html_rel_path
             output_doc_path.parent.mkdir(parents=True, exist_ok=True)
 
+            # Get category docs for sidebar navigation
+            category = api_doc.get('category', '')
+            category_docs = api_doc_categories.get(category, []) if api_doc_categories else []
+
             # Check if this has API paths or is schema-only
             if has_api_paths(swagger_data):
                 # Use Redoc for API documentation
@@ -867,7 +873,8 @@ def _generate_swagger_pages(
                 html_content = generate_schema_html(
                     swagger_data=swagger_data,
                     title=api_doc['name'],
-                    current_doc_path=html_rel_path
+                    current_doc_path=html_rel_path,
+                    category_docs=category_docs
                 )
 
             with open(output_doc_path, 'w', encoding='utf-8') as f:

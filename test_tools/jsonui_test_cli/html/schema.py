@@ -30,10 +30,46 @@ def _get_relative_root(doc_path: str) -> str:
     return "../" * depth
 
 
+def _generate_sidebar(
+    category_docs: list[dict] | None,
+    current_doc_path: str | None,
+    rel_root: str
+) -> list[str]:
+    """Generate sidebar with navigation links."""
+    parts = [
+        "  <aside class='sidebar'>",
+        "    <div class='sidebar-header'>",
+        f"      <a href='{rel_root}index.html' class='sidebar-title'>Index</a>",
+        "    </div>",
+        "    <nav class='sidebar-nav'>",
+    ]
+
+    if category_docs:
+        parts.append("      <ul class='nav-list'>")
+        for doc in category_docs:
+            doc_name = doc.get('name', '')
+            doc_path = doc.get('path', '')
+            # Get just the filename for comparison
+            current_filename = Path(current_doc_path).name if current_doc_path else ''
+            doc_filename = Path(doc_path).name if doc_path else ''
+            is_current = current_filename == doc_filename
+            active_class = " class='active'" if is_current else ""
+            # Use just filename since we're in the same directory
+            parts.append(f"        <li{active_class}><a href='{doc_filename}'>{escape_html(doc_name)}</a></li>")
+        parts.append("      </ul>")
+
+    parts.extend([
+        "    </nav>",
+        "  </aside>",
+    ])
+    return parts
+
+
 def generate_schema_html(
     swagger_data: dict,
     title: str | None = None,
-    current_doc_path: str | None = None
+    current_doc_path: str | None = None,
+    category_docs: list[dict] | None = None
 ) -> str:
     """
     Generate HTML documentation page for schema-only OpenAPI files.
@@ -42,6 +78,7 @@ def generate_schema_html(
         swagger_data: Parsed Swagger/OpenAPI data
         title: Optional title override
         current_doc_path: Current document's relative path
+        category_docs: List of docs in the same category for sidebar navigation
 
     Returns:
         Complete HTML string with schema documentation
@@ -56,12 +93,8 @@ def generate_schema_html(
 
     rel_root = _get_relative_root(current_doc_path) if current_doc_path else "../"
 
-    # Back link header
-    html_parts.extend([
-        "  <div class='back-header'>",
-        f"    <a href='{rel_root}index.html' class='back-link'>&larr; Back to Index</a>",
-        "  </div>",
-    ])
+    # Sidebar
+    html_parts.extend(_generate_sidebar(category_docs, current_doc_path, rel_root))
 
     # Main content
     html_parts.extend([
@@ -247,8 +280,7 @@ def _render_property_row(prop_name: str, prop_def: dict, is_required: bool) -> l
 
     constraints_str = '<br>'.join(constraints) if constraints else '-'
 
-    required_class = ' class="required-row"' if is_required else ''
-    parts.append(f"          <tr{required_class}>")
+    parts.append("          <tr>")
     parts.append(f"            <td><code>{escape_html(prop_name)}</code></td>")
     parts.append(f"            <td><code>{escape_html(type_str)}</code></td>")
     parts.append(f"            <td>{escape_html(prop_desc)}</td>")
@@ -274,29 +306,64 @@ def _get_html_header(title: str) -> list[str]:
         "      background: #f5f5f5;",
         "      color: #333;",
         "      line-height: 1.6;",
+        "      display: flex;",
         "    }",
-        "    .back-header {",
+        "    .sidebar {",
+        "      width: 240px;",
+        "      min-width: 240px;",
+        "      height: 100vh;",
         "      position: fixed;",
         "      top: 0;",
         "      left: 0;",
-        "      right: 0;",
-        "      z-index: 1000;",
         "      background: #1a1a2e;",
-        "      padding: 10px 20px;",
+        "      color: #fff;",
+        "      overflow-y: auto;",
+        "      padding: 15px 0;",
+        "    }",
+        "    .sidebar-header {",
+        "      padding: 10px 20px 15px;",
         "      border-bottom: 1px solid #333;",
         "    }",
-        "    .back-header .back-link {",
+        "    .sidebar-title {",
         "      color: #4dabf7;",
         "      text-decoration: none;",
         "      font-size: 14px;",
         "    }",
-        "    .back-header .back-link:hover {",
+        "    .sidebar-title:hover {",
         "      text-decoration: underline;",
         "    }",
+        "    .sidebar-nav {",
+        "      padding: 10px 0;",
+        "    }",
+        "    .nav-list {",
+        "      list-style: none;",
+        "    }",
+        "    .nav-list li {",
+        "      border-left: 3px solid transparent;",
+        "    }",
+        "    .nav-list li.active {",
+        "      background: rgba(77, 171, 247, 0.1);",
+        "      border-left-color: #4dabf7;",
+        "    }",
+        "    .nav-list li a {",
+        "      display: block;",
+        "      padding: 6px 20px;",
+        "      color: #ccc;",
+        "      text-decoration: none;",
+        "      font-size: 13px;",
+        "    }",
+        "    .nav-list li a:hover {",
+        "      background: rgba(255,255,255,0.05);",
+        "      color: #fff;",
+        "    }",
+        "    .nav-list li.active a {",
+        "      color: #4dabf7;",
+        "    }",
         "    .main-content {",
-        "      max-width: 1200px;",
-        "      margin: 0 auto;",
-        "      padding: 60px 20px 40px;",
+        "      margin-left: 240px;",
+        "      flex: 1;",
+        "      padding: 30px;",
+        "      max-width: calc(100% - 240px);",
         "    }",
         "    h1 {",
         "      font-size: 28px;",
@@ -329,36 +396,31 @@ def _get_html_header(title: str) -> list[str]:
         "      width: 100%;",
         "      border-collapse: collapse;",
         "      font-size: 14px;",
+        "      border: 1px solid #dee2e6;",
         "    }",
         "    .properties-table th {",
         "      background: #f8f9fa;",
         "      padding: 12px;",
         "      text-align: left;",
-        "      border-bottom: 2px solid #dee2e6;",
+        "      border: 1px solid #dee2e6;",
         "      font-weight: 600;",
         "    }",
         "    .properties-table td {",
         "      padding: 10px 12px;",
-        "      border-bottom: 1px solid #eee;",
+        "      border: 1px solid #dee2e6;",
         "      vertical-align: top;",
         "    }",
         "    .properties-table tr:hover {",
         "      background: #f8f9fa;",
         "    }",
         "    .properties-table code {",
-        "      background: #e9ecef;",
-        "      padding: 2px 6px;",
-        "      border-radius: 3px;",
+        "      font-family: 'SF Mono', Monaco, Consolas, monospace;",
         "      font-size: 13px;",
         "    }",
         "    .required {",
         "      color: #e53e3e;",
         "      font-weight: 600;",
-        "      font-size: 11px;",
-        "    }",
-        "    .required-row td:first-child code {",
-        "      border-left: 3px solid #e53e3e;",
-        "      padding-left: 8px;",
+        "      font-size: 12px;",
         "    }",
         "    .enum-schema {",
         "      background: #f0f9ff;",

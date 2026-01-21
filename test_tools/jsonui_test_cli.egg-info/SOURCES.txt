@@ -17,6 +17,7 @@ jsonui_test_cli/html/__init__.py
 jsonui_test_cli/html/document.py
 jsonui_test_cli/html/flow.py
 jsonui_test_cli/html/index.py
+jsonui_test_cli/html/schema.py
 jsonui_test_cli/html/screen.py
 jsonui_test_cli/html/sidebar.py
 jsonui_test_cli/html/styles.py
