@@ -246,8 +246,13 @@ def _build_grouped_erds(schema_files: list[dict]) -> dict[str, str]:
     Build grouped ER diagrams based on x-erd-group and x-erd-main attributes.
 
     Each table can specify:
-    - x-erd-group: Group name for the tab (e.g., "user", "notification")
-    - x-erd-main: Boolean, if true this table is the main/center table of the group
+    - x-erd-group: Group name(s) for the tab. Can be:
+        - String: Single group (e.g., "user")
+        - Array: Multiple groups (e.g., ["user", "notification"])
+    - x-erd-main: Main table for this group. Can be:
+        - Boolean: true means this table is main for all its groups
+        - String: Specific group name where this table is main
+        - Array: List of group names where this table is main
 
     Tables with the same x-erd-group value are grouped together.
     The x-erd-main table is rendered first in the diagram (appears at top).
@@ -283,14 +288,36 @@ def _build_grouped_erds(schema_files: list[dict]) -> dict[str, str]:
         if not table_name:
             continue
 
-        # Only process tables with explicit x-erd-group
-        if erd_group:
-            if erd_group not in tables_by_group:
-                tables_by_group[erd_group] = []
-            tables_by_group[erd_group].append(schema_file)
+        # Normalize erd_group to list
+        if isinstance(erd_group, str):
+            groups = [erd_group] if erd_group else []
+        elif isinstance(erd_group, list):
+            groups = erd_group
+        else:
+            groups = []
 
-            if erd_main:
-                main_tables[erd_group] = table_name
+        # Normalize erd_main to set of group names
+        main_for_groups: set[str] = set()
+        if erd_main is True:
+            # Main for all groups
+            main_for_groups = set(groups)
+        elif isinstance(erd_main, str):
+            # Main for specific group
+            main_for_groups = {erd_main}
+        elif isinstance(erd_main, list):
+            # Main for multiple groups
+            main_for_groups = set(erd_main)
+
+        # Add to each group
+        for group in groups:
+            if not group:
+                continue
+            if group not in tables_by_group:
+                tables_by_group[group] = []
+            tables_by_group[group].append(schema_file)
+
+            if group in main_for_groups:
+                main_tables[group] = table_name
 
     # Build mermaid code for each group
     result = {}
