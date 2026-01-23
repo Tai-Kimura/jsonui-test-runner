@@ -44,3 +44,11 @@ yarn-error.log*
 # Test output
 *.xcresult
 coverage/
+
+# Python build
+test_tools/build/
+test_tools/dist/
+test_tools/*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
