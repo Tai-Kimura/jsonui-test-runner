@@ -243,10 +243,14 @@ def generate_erd_html(
 
 def _build_grouped_erds(schema_files: list[dict]) -> dict[str, str]:
     """
-    Build grouped ER diagrams based on foreign key relationships.
+    Build grouped ER diagrams based on x-erd-group and x-erd-main attributes.
 
-    Tables are grouped by their "root" table (tables with no FK or FK to themselves).
-    Related tables are grouped together.
+    Each table can specify:
+    - x-erd-group: Group name for the tab (e.g., "user", "notification")
+    - x-erd-main: Boolean, if true this table is the main/center table of the group
+
+    Tables with the same x-erd-group value are grouped together.
+    The x-erd-main table is rendered first in the diagram (appears at top).
 
     Args:
         schema_files: List of schema file dicts
@@ -254,9 +258,9 @@ def _build_grouped_erds(schema_files: list[dict]) -> dict[str, str]:
     Returns:
         Dict of group_name -> mermaid_code
     """
-    # First, extract all tables and their relationships
-    tables_info = {}  # table_name -> {fields, fk_refs}
-    all_fk_refs = []  # [(from_table, to_table)]
+    # Extract all tables with their group info
+    tables_by_group: dict[str, list[dict]] = {}  # group_name -> [schema_files]
+    main_tables: dict[str, str] = {}  # group_name -> main_table_name
 
     for schema_file in schema_files:
         swagger_data = schema_file.get('swagger_data', {})
@@ -265,6 +269,8 @@ def _build_grouped_erds(schema_files: list[dict]) -> dict[str, str]:
 
         info = swagger_data.get('info', {})
         table_name = info.get('x-table-name', '')
+        erd_group = info.get('x-erd-group', '')
+        erd_main = info.get('x-erd-main', False)
 
         if not table_name:
             schemas = swagger_data.get('components', {}).get('schemas', {})
@@ -277,95 +283,43 @@ def _build_grouped_erds(schema_files: list[dict]) -> dict[str, str]:
         if not table_name:
             continue
 
-        schemas = swagger_data.get('components', {}).get('schemas', {})
-        for schema_name, schema_def in schemas.items():
-            if schema_def.get('type') == 'string' and 'enum' in schema_def:
-                continue
+        # Only process tables with explicit x-erd-group
+        if erd_group:
+            if erd_group not in tables_by_group:
+                tables_by_group[erd_group] = []
+            tables_by_group[erd_group].append(schema_file)
 
-            properties = schema_def.get('properties', {})
-            fk_refs = []
-
-            for prop_name, prop_def in properties.items():
-                if prop_def.get('x-foreign-key'):
-                    fk = prop_def['x-foreign-key']
-                    if isinstance(fk, dict):
-                        ref_table = fk.get('table', '')
-                    else:
-                        parts = str(fk).split('.')
-                        ref_table = parts[0] if parts else ''
-                    if ref_table and ref_table != table_name:
-                        fk_refs.append(ref_table)
-                        all_fk_refs.append((table_name, ref_table))
-
-            tables_info[table_name] = {
-                'schema_file': schema_file,
-                'fk_refs': fk_refs
-            }
-
-    # Find root tables (no FK references to other tables in our set)
-    root_tables = set()
-    for table_name, info in tables_info.items():
-        # A table is a root if it has no FK refs, or all its FK refs are to external tables
-        has_internal_ref = any(ref in tables_info for ref in info['fk_refs'])
-        if not has_internal_ref:
-            root_tables.add(table_name)
-
-    # If no root tables found (circular refs), pick the one with most references to it
-    if not root_tables:
-        ref_counts = {}
-        for _, to_table in all_fk_refs:
-            ref_counts[to_table] = ref_counts.get(to_table, 0) + 1
-        if ref_counts:
-            root_tables.add(max(ref_counts, key=ref_counts.get))
-        else:
-            # Just use all tables as roots
-            root_tables = set(tables_info.keys())
-
-    # Group tables by their root
-    groups = {}  # root_table -> set of related tables
-
-    # BFS to find all tables connected to each root
-    for root in root_tables:
-        if root not in tables_info:
-            continue
-
-        connected = {root}
-        queue = [root]
-
-        while queue:
-            current = queue.pop(0)
-            # Find tables that reference current
-            for from_table, to_table in all_fk_refs:
-                if to_table == current and from_table in tables_info:
-                    if from_table not in connected:
-                        connected.add(from_table)
-                        queue.append(from_table)
-            # Find tables that current references
-            if current in tables_info:
-                for ref in tables_info[current]['fk_refs']:
-                    if ref in tables_info and ref not in connected:
-                        connected.add(ref)
-                        queue.append(ref)
-
-        if len(connected) > 1:  # Only create group if more than one table
-            groups[root] = connected
+            if erd_main:
+                main_tables[erd_group] = table_name
 
     # Build mermaid code for each group
     result = {}
-    for root, table_set in groups.items():
-        group_files = [tables_info[t]['schema_file'] for t in table_set if t in tables_info]
-        if group_files:
-            result[root] = _build_mermaid_erd(group_files)
+    for group_name, group_files in tables_by_group.items():
+        if not group_files:
+            continue
+
+        # Sort files so main table comes first
+        main_table = main_tables.get(group_name)
+        if main_table:
+            # Sort: main table first, then others
+            def sort_key(sf: dict) -> int:
+                info = sf.get('swagger_data', {}).get('info', {})
+                tbl = info.get('x-table-name', '')
+                return 0 if tbl == main_table else 1
+            group_files = sorted(group_files, key=sort_key)
+
+        result[group_name] = _build_mermaid_erd(group_files, main_table)
 
     return result
 
 
-def _build_mermaid_erd(schema_files: list[dict]) -> str:
+def _build_mermaid_erd(schema_files: list[dict], main_table: str | None = None) -> str:
     """
     Build Mermaid ER diagram code from schema files.
 
     Args:
         schema_files: List of schema file dicts
+        main_table: Optional main table name to be rendered first (center of diagram)
 
     Returns:
         Mermaid erDiagram code
@@ -459,8 +413,15 @@ def _build_mermaid_erd(schema_files: list[dict]) -> str:
             for ref_table, fk_field in fk_relations:
                 relationships.append((ref_table, table_name, '||--o{', fk_field))
 
-    # Generate Mermaid code for tables
-    for table_name, table_info in tables.items():
+    # Generate Mermaid code for tables (main table first if specified)
+    table_names = list(tables.keys())
+    if main_table and main_table in table_names:
+        # Move main table to front
+        table_names.remove(main_table)
+        table_names.insert(0, main_table)
+
+    for table_name in table_names:
+        table_info = tables[table_name]
         # Sanitize table name for Mermaid (replace special chars)
         safe_table_name = _sanitize_mermaid_name(table_name)
         lines.append(f"    {safe_table_name} {{")
