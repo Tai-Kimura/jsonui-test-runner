@@ -460,15 +460,14 @@ def _build_mermaid_erd(schema_files: list[dict], main_table: str | None = None) 
         lines.append("    }")
 
     # Generate relationships
+    # Only include relationships where both tables exist in this group
     for from_table, to_table, rel_type, label in relationships:
+        # Skip relationships where either table is not in this group
+        if from_table not in tables or to_table not in tables:
+            continue
         safe_from = _sanitize_mermaid_name(from_table)
         safe_to = _sanitize_mermaid_name(to_table)
-        # Check if from_table exists in our tables
-        if from_table in tables:
-            lines.append(f"    {safe_from} {rel_type} {safe_to} : \"{label}\"")
-        else:
-            # External reference - still show relationship but table won't have fields
-            lines.append(f"    {safe_from} {rel_type} {safe_to} : \"{label}\"")
+        lines.append(f"    {safe_from} {rel_type} {safe_to} : \"{label}\"")
 
     return '\n'.join(lines)
 
