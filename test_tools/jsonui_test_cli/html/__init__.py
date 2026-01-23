@@ -23,6 +23,7 @@ from .schema import (
     has_api_paths,
     generate_schema_html,
 )
+from .erd import generate_erd_html
 
 __all__ = [
     "get_screen_styles",
@@ -40,4 +41,5 @@ __all__ = [
     "generate_swagger_html",
     "has_api_paths",
     "generate_schema_html",
+    "generate_erd_html",
 ]

@@ -17,6 +17,7 @@ from .html import (
     generate_swagger_html,
     has_api_paths,
     generate_schema_html,
+    generate_erd_html,
 )
 from .html.sidebar import escape_html
 from .markdown import generate_markdown, generate_schema_markdown
@@ -833,6 +834,7 @@ def _generate_swagger_pages(
     Generate Swagger/OpenAPI documentation pages.
 
     Uses Redoc for files with API paths, schema HTML for schema-only files.
+    Also generates ER diagram for DB schema categories.
 
     Args:
         output_path: Output directory for generated HTML
@@ -844,6 +846,9 @@ def _generate_swagger_pages(
         return
 
     print("  Generating API documentation pages...")
+
+    # Track schema-only files by category for ER diagram generation
+    schema_files_by_category: dict[str, list[dict]] = {}
 
     for api_doc in api_doc_files:
         try:
@@ -876,6 +881,10 @@ def _generate_swagger_pages(
                     current_doc_path=html_rel_path,
                     category_docs=category_docs
                 )
+                # Track for ER diagram
+                if category not in schema_files_by_category:
+                    schema_files_by_category[category] = []
+                schema_files_by_category[category].append(api_doc)
 
             with open(output_doc_path, 'w', encoding='utf-8') as f:
                 f.write(html_content)
@@ -884,3 +893,29 @@ def _generate_swagger_pages(
 
         except Exception as e:
             print(f"    Error processing API doc {api_doc.get('name', 'unknown')}: {e}")
+
+    # Generate ER diagrams for each schema category
+    for category, schema_files in schema_files_by_category.items():
+        if not schema_files:
+            continue
+
+        try:
+            category_docs = api_doc_categories.get(category, []) if api_doc_categories else []
+            erd_path = f"{category}/erd.html"
+            output_erd_path = output_path / erd_path
+            output_erd_path.parent.mkdir(parents=True, exist_ok=True)
+
+            erd_html = generate_erd_html(
+                schema_files=schema_files,
+                title=f"{category.upper()} ER Diagram",
+                current_doc_path=erd_path,
+                category_docs=category_docs
+            )
+
+            with open(output_erd_path, 'w', encoding='utf-8') as f:
+                f.write(erd_html)
+
+            print(f"    Generated: {output_erd_path} (ER Diagram)")
+
+        except Exception as e:
+            print(f"    Error generating ER diagram for {category}: {e}")

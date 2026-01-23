@@ -42,10 +42,20 @@ def _generate_sidebar(
         f"      <a href='{rel_root}index.html' class='sidebar-title'>&larr; Back to Index</a>",
         "    </div>",
         "    <nav class='sidebar-nav'>",
+        "      <div class='nav-section'>",
+        "        <div class='nav-section-title'>ER Diagram</div>",
+        "        <ul class='nav-list'>",
+        "          <li><a href='erd.html'>ER Diagram</a></li>",
+        "        </ul>",
+        "      </div>",
     ]
 
     if category_docs:
-        parts.append("      <ul class='nav-list'>")
+        parts.extend([
+            "      <div class='nav-section'>",
+            "        <div class='nav-section-title'>Tables</div>",
+            "        <ul class='nav-list'>",
+        ])
         for doc in category_docs:
             doc_name = doc.get('name', '')
             doc_path = doc.get('path', '')
@@ -55,8 +65,11 @@ def _generate_sidebar(
             is_current = current_filename == doc_filename
             active_class = " class='active'" if is_current else ""
             # Use just filename since we're in the same directory
-            parts.append(f"        <li{active_class}><a href='{doc_filename}'>{escape_html(doc_name)}</a></li>")
-        parts.append("      </ul>")
+            parts.append(f"          <li{active_class}><a href='{doc_filename}'>{escape_html(doc_name)}</a></li>")
+        parts.extend([
+            "        </ul>",
+            "      </div>",
+        ])
 
     parts.extend([
         "    </nav>",
@@ -408,6 +421,17 @@ def _get_html_header(title: str) -> list[str]:
         "    .nav-list li a:hover {",
         "      background: #e9ecef;",
         "      color: #007AFF;",
+        "    }",
+        "    .nav-section {",
+        "      margin-bottom: 20px;",
+        "    }",
+        "    .nav-section-title {",
+        "      font-size: 0.75em;",
+        "      font-weight: 600;",
+        "      color: #888;",
+        "      text-transform: uppercase;",
+        "      letter-spacing: 0.5px;",
+        "      margin-bottom: 8px;",
         "    }",
         "    .main-content {",
         "      margin-left: 280px;",

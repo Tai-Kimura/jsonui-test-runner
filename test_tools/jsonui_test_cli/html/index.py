@@ -169,14 +169,33 @@ def generate_index_html(
             # Format category name for display (e.g., "api" -> "API", "db" -> "DB")
             display_name = category_name.upper() if len(category_name) <= 3 else category_name.title()
             category_id = f"api-{category_name}"
+
+            # Check if this category has schema-only files (for ER diagram link)
+            has_schema_files = any(
+                not d.get('has_api_paths', True) for d in category_docs
+            )
+
             html_parts.extend([
                 "    <div class='category'>",
                 f"      <div class='category-header collapsed' id='{category_id}-header' onclick=\"toggleCategory('{category_id}')\">",
                 f"        <h2><span class='arrow'>▼</span> {display_name} <span class='category-badge api'>{len(category_docs)}</span></h2>",
                 "      </div>",
                 f"      <div class='category-content collapsed' id='{category_id}-content'>",
-                "        <ul class='test-list'>",
             ])
+
+            # Add ER Diagram link for DB-like categories (schema-only)
+            if category_name.lower() == 'db':
+                html_parts.extend([
+                    "        <div class='erd-link-container'>",
+                    f"          <a href='{category_name}/erd.html' class='erd-link'>",
+                    "            <span class='erd-icon'>📊</span>",
+                    "            <span class='erd-text'>View ER Diagram</span>",
+                    "            <span class='erd-desc'>Table relationships visualization</span>",
+                    "          </a>",
+                    "        </div>",
+                ])
+
+            html_parts.append("        <ul class='test-list'>")
             for d in category_docs:
                 desc = d.get('description', '')
                 html_parts.extend([
