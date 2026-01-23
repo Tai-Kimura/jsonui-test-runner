@@ -45,14 +45,18 @@ def generate_erd_html(
     ])
 
     # Tabs - create mapping of safe IDs to group names
-    group_tab_ids = {group_name: _sanitize_tab_id(group_name) for group_name in groups.keys()}
+    # Sort groups by name (allows ordering with prefixes like "01_", "02_")
+    sorted_group_names = sorted(groups.keys())
+    group_tab_ids = {group_name: _sanitize_tab_id(group_name) for group_name in sorted_group_names}
 
     html_parts.extend([
         "    <div class='tabs'>",
         "      <button class='tab-btn active' onclick=\"switchTab('all')\">All Tables</button>",
     ])
-    for group_name, tab_id in group_tab_ids.items():
-        display_name = group_name.replace('_', ' ').title()
+    for group_name in sorted_group_names:
+        tab_id = group_tab_ids[group_name]
+        # Remove ordering prefix (e.g., "01_管理者" -> "管理者")
+        display_name = _strip_order_prefix(group_name).replace('_', ' ').title()
         html_parts.append(f"      <button class='tab-btn' onclick=\"switchTab('{tab_id}')\">{escape_html(display_name)}</button>")
     html_parts.append("    </div>")
 
@@ -80,8 +84,9 @@ def generate_erd_html(
         "    </div>",
     ])
 
-    # Group diagrams
-    for group_name, mermaid_code in groups.items():
+    # Group diagrams (in sorted order)
+    for group_name in sorted_group_names:
+        mermaid_code = groups[group_name]
         tab_id = group_tab_ids[group_name]
         html_parts.extend([
             f"    <div class='tab-content' id='tab-{tab_id}'>",
@@ -509,6 +514,13 @@ def _sanitize_tab_id(name: str) -> str:
         return f"{ascii_part}_{hash_suffix}" if ascii_part else f"tab_{hash_suffix}"
     # For ASCII names, just sanitize
     return re.sub(r'[^a-zA-Z0-9_]', '_', name)
+
+
+def _strip_order_prefix(name: str) -> str:
+    """Remove ordering prefix like '01_', '02_' from group name for display."""
+    import re
+    # Match patterns like "01_", "1_", "001_" at the start
+    return re.sub(r'^\d+_', '', name)
 
 
 def _map_type_to_mermaid(json_type: str, format: str = '') -> str:
