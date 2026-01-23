@@ -44,14 +44,16 @@ def generate_erd_html(
         "    <p class='description'>Database table relationships visualized from schema definitions.</p>",
     ])
 
-    # Tabs
+    # Tabs - create mapping of safe IDs to group names
+    group_tab_ids = {group_name: _sanitize_tab_id(group_name) for group_name in groups.keys()}
+
     html_parts.extend([
         "    <div class='tabs'>",
         "      <button class='tab-btn active' onclick=\"switchTab('all')\">All Tables</button>",
     ])
-    for group_name in groups.keys():
+    for group_name, tab_id in group_tab_ids.items():
         display_name = group_name.replace('_', ' ').title()
-        html_parts.append(f"      <button class='tab-btn' onclick=\"switchTab('{escape_html(group_name)}')\">{escape_html(display_name)}</button>")
+        html_parts.append(f"      <button class='tab-btn' onclick=\"switchTab('{tab_id}')\">{escape_html(display_name)}</button>")
     html_parts.append("    </div>")
 
     # Zoom controls
@@ -80,11 +82,11 @@ def generate_erd_html(
 
     # Group diagrams
     for group_name, mermaid_code in groups.items():
-        safe_name = escape_html(group_name)
+        tab_id = group_tab_ids[group_name]
         html_parts.extend([
-            f"    <div class='tab-content' id='tab-{safe_name}'>",
-            f"      <div class='diagram-wrapper' id='diagram-wrapper-{safe_name}'>",
-            f"        <div class='diagram-container' id='diagram-container-{safe_name}'>",
+            f"    <div class='tab-content' id='tab-{tab_id}'>",
+            f"      <div class='diagram-wrapper' id='diagram-wrapper-{tab_id}'>",
+            f"        <div class='diagram-container' id='diagram-container-{tab_id}'>",
             "          <pre class='mermaid'>",
             mermaid_code,
             "          </pre>",
@@ -135,13 +137,22 @@ def generate_erd_html(
         "      const pre = container.querySelector('pre.mermaid');",
         "      if (!pre || pre.dataset.processed) return;",
         "      try {",
-        "        const code = pre.textContent;",
+        "        const code = pre.textContent.trim();",
+        "        if (!code || code === 'erDiagram') {",
+        "          pre.innerHTML = '<p style=\"color:#888;padding:20px;\">No tables in this group</p>';",
+        "          pre.dataset.processed = 'true';",
+        "          renderedTabs.add(tabName);",
+        "          return;",
+        "        }",
         "        const { svg } = await mermaid.render('mermaid-' + tabName, code);",
         "        pre.innerHTML = svg;",
         "        pre.dataset.processed = 'true';",
         "        renderedTabs.add(tabName);",
         "      } catch (e) {",
         "        console.error('Mermaid render error:', e);",
+        "        pre.innerHTML = '<p style=\"color:#c00;padding:20px;\">Diagram rendering failed: ' + e.message + '</p>';",
+        "        pre.dataset.processed = 'true';",
+        "        renderedTabs.add(tabName);",
         "      }",
         "    }",
         "",
@@ -483,6 +494,20 @@ def _sanitize_mermaid_name(name: str) -> str:
     """Sanitize name for Mermaid diagram (remove special characters)."""
     # Replace non-alphanumeric chars with underscore
     import re
+    return re.sub(r'[^a-zA-Z0-9_]', '_', name)
+
+
+def _sanitize_tab_id(name: str) -> str:
+    """Sanitize name for HTML ID and JavaScript (ASCII-safe)."""
+    import re
+    import hashlib
+    # Create a short hash for non-ASCII names
+    if not name.isascii():
+        # Use hash for non-ASCII to create safe ID
+        hash_suffix = hashlib.md5(name.encode()).hexdigest()[:8]
+        ascii_part = re.sub(r'[^a-zA-Z0-9_]', '', name)
+        return f"{ascii_part}_{hash_suffix}" if ascii_part else f"tab_{hash_suffix}"
+    # For ASCII names, just sanitize
     return re.sub(r'[^a-zA-Z0-9_]', '_', name)
 
 
