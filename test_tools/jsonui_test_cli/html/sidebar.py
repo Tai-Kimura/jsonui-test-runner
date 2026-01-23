@@ -301,6 +301,9 @@ def generate_index_sidebar(
             parts.append("    <div class='sidebar-section'>")
             parts.append(f"      <div class='sidebar-title api collapsed' id='{sidebar_id}-title' onclick=\"toggleSidebar('api-{category_name}')\"><span class='arrow'>▼</span>{display_name} <span class='count'>{len(category_docs)}</span></div>")
             parts.append(f"      <div class='sidebar-list collapsed' id='{sidebar_id}-list'>")
+            # Add ER Diagram link for DB category
+            if category_name.lower() == 'db':
+                parts.append(f"        <div class='sidebar-erd-link'><a href='{category_name}/erd.html'>ER Diagram</a></div>")
             parts.append("        <ul>")
             for d in category_docs:
                 parts.append(f"          <li><a href='{d['path']}' title='{escape_html(d['name'])}'>{escape_html(d['name'])}</a></li>")
