@@ -55,8 +55,7 @@ def generate_erd_html(
     ])
     for group_name in sorted_group_names:
         tab_id = group_tab_ids[group_name]
-        # Remove ordering prefix (e.g., "01_管理者" -> "管理者")
-        display_name = _strip_order_prefix(group_name).replace('_', ' ').title()
+        display_name = group_name.replace('_', ' ').title()
         html_parts.append(f"      <button class='tab-btn' onclick=\"switchTab('{tab_id}')\">{escape_html(display_name)}</button>")
     html_parts.append("    </div>")
 
