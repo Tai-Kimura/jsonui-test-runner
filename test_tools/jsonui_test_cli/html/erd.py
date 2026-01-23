@@ -26,8 +26,9 @@ def generate_erd_html(
     Returns:
         Complete HTML string with ER diagram
     """
-    # Build Mermaid ER diagram definition
-    mermaid_code = _build_mermaid_erd(schema_files)
+    # Build grouped Mermaid diagrams
+    groups = _build_grouped_erds(schema_files)
+    all_mermaid_code = _build_mermaid_erd(schema_files)
 
     html_parts = _get_html_header(title)
 
@@ -41,6 +42,20 @@ def generate_erd_html(
         "  <main class='main-content'>",
         f"    <h1>{escape_html(title)}</h1>",
         "    <p class='description'>Database table relationships visualized from schema definitions.</p>",
+    ])
+
+    # Tabs
+    html_parts.extend([
+        "    <div class='tabs'>",
+        "      <button class='tab-btn active' onclick=\"switchTab('all')\">All Tables</button>",
+    ])
+    for group_name in groups.keys():
+        display_name = group_name.replace('_', ' ').title()
+        html_parts.append(f"      <button class='tab-btn' onclick=\"switchTab('{escape_html(group_name)}')\">{escape_html(display_name)}</button>")
+    html_parts.append("    </div>")
+
+    # Zoom controls
+    html_parts.extend([
         "    <div class='zoom-controls'>",
         "      <button onclick='zoomOut()' title='Zoom Out'>−</button>",
         "      <span id='zoom-level'>100%</span>",
@@ -48,13 +63,38 @@ def generate_erd_html(
         "      <button onclick='resetZoom()' title='Reset'>Reset</button>",
         "      <button onclick='fitToScreen()' title='Fit to Screen'>Fit</button>",
         "    </div>",
-        "    <div class='diagram-wrapper' id='diagram-wrapper'>",
-        "      <div class='diagram-container' id='diagram-container'>",
-        "        <pre class='mermaid'>",
-        mermaid_code,
-        "        </pre>",
+    ])
+
+    # All tables diagram
+    html_parts.extend([
+        "    <div class='tab-content active' id='tab-all'>",
+        "      <div class='diagram-wrapper' id='diagram-wrapper-all'>",
+        "        <div class='diagram-container' id='diagram-container-all'>",
+        "          <pre class='mermaid'>",
+        all_mermaid_code,
+        "          </pre>",
+        "        </div>",
         "      </div>",
         "    </div>",
+    ])
+
+    # Group diagrams
+    for group_name, mermaid_code in groups.items():
+        safe_name = escape_html(group_name)
+        html_parts.extend([
+            f"    <div class='tab-content' id='tab-{safe_name}'>",
+            f"      <div class='diagram-wrapper' id='diagram-wrapper-{safe_name}'>",
+            f"        <div class='diagram-container' id='diagram-container-{safe_name}'>",
+            "          <pre class='mermaid'>",
+            mermaid_code,
+            "          </pre>",
+            "        </div>",
+            "      </div>",
+            "    </div>",
+        ])
+
+    # Legend
+    html_parts.extend([
         "    <div class='legend'>",
         "      <h3>Legend</h3>",
         "      <ul>",
@@ -66,9 +106,14 @@ def generate_erd_html(
         "      </ul>",
         "    </div>",
         "  </main>",
+    ])
+
+    # Scripts
+    html_parts.extend([
         "  <script src='https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js'></script>",
         "  <script>",
-        "    let currentZoom = 1;",
+        "    let currentZoom = {};",
+        "    let activeTab = 'all';",
         "    const minZoom = 0.25;",
         "    const maxZoom = 3;",
         "    const zoomStep = 0.25;",
@@ -82,65 +127,213 @@ def generate_erd_html(
         "      }",
         "    });",
         "",
+        "    function getZoom() {",
+        "      if (!currentZoom[activeTab]) currentZoom[activeTab] = 1;",
+        "      return currentZoom[activeTab];",
+        "    }",
+        "",
+        "    function setZoom(val) {",
+        "      currentZoom[activeTab] = val;",
+        "    }",
+        "",
         "    function updateZoom() {",
-        "      const container = document.getElementById('diagram-container');",
-        "      container.style.transform = `scale(${currentZoom})`;",
-        "      document.getElementById('zoom-level').textContent = Math.round(currentZoom * 100) + '%';",
+        "      const container = document.getElementById('diagram-container-' + activeTab);",
+        "      if (container) {",
+        "        container.style.transform = `scale(${getZoom()})`;",
+        "      }",
+        "      document.getElementById('zoom-level').textContent = Math.round(getZoom() * 100) + '%';",
         "    }",
         "",
         "    function zoomIn() {",
-        "      if (currentZoom < maxZoom) {",
-        "        currentZoom = Math.min(maxZoom, currentZoom + zoomStep);",
+        "      if (getZoom() < maxZoom) {",
+        "        setZoom(Math.min(maxZoom, getZoom() + zoomStep));",
         "        updateZoom();",
         "      }",
         "    }",
         "",
         "    function zoomOut() {",
-        "      if (currentZoom > minZoom) {",
-        "        currentZoom = Math.max(minZoom, currentZoom - zoomStep);",
+        "      if (getZoom() > minZoom) {",
+        "        setZoom(Math.max(minZoom, getZoom() - zoomStep));",
         "        updateZoom();",
         "      }",
         "    }",
         "",
         "    function resetZoom() {",
-        "      currentZoom = 1;",
+        "      setZoom(1);",
         "      updateZoom();",
         "    }",
         "",
         "    function fitToScreen() {",
-        "      const wrapper = document.getElementById('diagram-wrapper');",
-        "      const container = document.getElementById('diagram-container');",
+        "      const wrapper = document.getElementById('diagram-wrapper-' + activeTab);",
+        "      const container = document.getElementById('diagram-container-' + activeTab);",
+        "      if (!wrapper || !container) return;",
         "      const svg = container.querySelector('svg');",
         "      if (svg) {",
         "        const wrapperWidth = wrapper.clientWidth - 40;",
         "        const wrapperHeight = wrapper.clientHeight - 40;",
-        "        const svgWidth = svg.getBoundingClientRect().width / currentZoom;",
-        "        const svgHeight = svg.getBoundingClientRect().height / currentZoom;",
+        "        const svgWidth = svg.getBoundingClientRect().width / getZoom();",
+        "        const svgHeight = svg.getBoundingClientRect().height / getZoom();",
         "        const scaleX = wrapperWidth / svgWidth;",
         "        const scaleY = wrapperHeight / svgHeight;",
-        "        currentZoom = Math.min(scaleX, scaleY, maxZoom);",
-        "        currentZoom = Math.max(currentZoom, minZoom);",
+        "        let newZoom = Math.min(scaleX, scaleY, maxZoom);",
+        "        newZoom = Math.max(newZoom, minZoom);",
+        "        setZoom(newZoom);",
         "        updateZoom();",
         "      }",
         "    }",
         "",
-        "    // Mouse wheel zoom",
-        "    document.getElementById('diagram-wrapper').addEventListener('wheel', function(e) {",
-        "      if (e.ctrlKey || e.metaKey) {",
-        "        e.preventDefault();",
-        "        if (e.deltaY < 0) {",
-        "          zoomIn();",
-        "        } else {",
-        "          zoomOut();",
+        "    function switchTab(tabName) {",
+        "      // Update buttons",
+        "      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));",
+        "      event.target.classList.add('active');",
+        "",
+        "      // Update content",
+        "      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));",
+        "      const tabContent = document.getElementById('tab-' + tabName);",
+        "      if (tabContent) tabContent.classList.add('active');",
+        "",
+        "      activeTab = tabName;",
+        "      updateZoom();",
+        "    }",
+        "",
+        "    // Mouse wheel zoom for active tab",
+        "    document.querySelectorAll('.diagram-wrapper').forEach(wrapper => {",
+        "      wrapper.addEventListener('wheel', function(e) {",
+        "        if (e.ctrlKey || e.metaKey) {",
+        "          e.preventDefault();",
+        "          if (e.deltaY < 0) {",
+        "            zoomIn();",
+        "          } else {",
+        "            zoomOut();",
+        "          }",
         "        }",
-        "      }",
-        "    }, { passive: false });",
+        "      }, { passive: false });",
+        "    });",
         "  </script>",
         "</body>",
         "</html>",
     ])
 
     return '\n'.join(html_parts)
+
+
+def _build_grouped_erds(schema_files: list[dict]) -> dict[str, str]:
+    """
+    Build grouped ER diagrams based on foreign key relationships.
+
+    Tables are grouped by their "root" table (tables with no FK or FK to themselves).
+    Related tables are grouped together.
+
+    Args:
+        schema_files: List of schema file dicts
+
+    Returns:
+        Dict of group_name -> mermaid_code
+    """
+    # First, extract all tables and their relationships
+    tables_info = {}  # table_name -> {fields, fk_refs}
+    all_fk_refs = []  # [(from_table, to_table)]
+
+    for schema_file in schema_files:
+        swagger_data = schema_file.get('swagger_data', {})
+        if not swagger_data:
+            continue
+
+        info = swagger_data.get('info', {})
+        table_name = info.get('x-table-name', '')
+
+        if not table_name:
+            schemas = swagger_data.get('components', {}).get('schemas', {})
+            for schema_name, schema_def in schemas.items():
+                if schema_def.get('type') == 'string' and 'enum' in schema_def:
+                    continue
+                table_name = _to_snake_case(schema_name)
+                break
+
+        if not table_name:
+            continue
+
+        schemas = swagger_data.get('components', {}).get('schemas', {})
+        for schema_name, schema_def in schemas.items():
+            if schema_def.get('type') == 'string' and 'enum' in schema_def:
+                continue
+
+            properties = schema_def.get('properties', {})
+            fk_refs = []
+
+            for prop_name, prop_def in properties.items():
+                if prop_def.get('x-foreign-key'):
+                    fk = prop_def['x-foreign-key']
+                    if isinstance(fk, dict):
+                        ref_table = fk.get('table', '')
+                    else:
+                        parts = str(fk).split('.')
+                        ref_table = parts[0] if parts else ''
+                    if ref_table and ref_table != table_name:
+                        fk_refs.append(ref_table)
+                        all_fk_refs.append((table_name, ref_table))
+
+            tables_info[table_name] = {
+                'schema_file': schema_file,
+                'fk_refs': fk_refs
+            }
+
+    # Find root tables (no FK references to other tables in our set)
+    root_tables = set()
+    for table_name, info in tables_info.items():
+        # A table is a root if it has no FK refs, or all its FK refs are to external tables
+        has_internal_ref = any(ref in tables_info for ref in info['fk_refs'])
+        if not has_internal_ref:
+            root_tables.add(table_name)
+
+    # If no root tables found (circular refs), pick the one with most references to it
+    if not root_tables:
+        ref_counts = {}
+        for _, to_table in all_fk_refs:
+            ref_counts[to_table] = ref_counts.get(to_table, 0) + 1
+        if ref_counts:
+            root_tables.add(max(ref_counts, key=ref_counts.get))
+        else:
+            # Just use all tables as roots
+            root_tables = set(tables_info.keys())
+
+    # Group tables by their root
+    groups = {}  # root_table -> set of related tables
+
+    # BFS to find all tables connected to each root
+    for root in root_tables:
+        if root not in tables_info:
+            continue
+
+        connected = {root}
+        queue = [root]
+
+        while queue:
+            current = queue.pop(0)
+            # Find tables that reference current
+            for from_table, to_table in all_fk_refs:
+                if to_table == current and from_table in tables_info:
+                    if from_table not in connected:
+                        connected.add(from_table)
+                        queue.append(from_table)
+            # Find tables that current references
+            if current in tables_info:
+                for ref in tables_info[current]['fk_refs']:
+                    if ref in tables_info and ref not in connected:
+                        connected.add(ref)
+                        queue.append(ref)
+
+        if len(connected) > 1:  # Only create group if more than one table
+            groups[root] = connected
+
+    # Build mermaid code for each group
+    result = {}
+    for root, table_set in groups.items():
+        group_files = [tables_info[t]['schema_file'] for t in table_set if t in tables_info]
+        if group_files:
+            result[root] = _build_mermaid_erd(group_files)
+
+    return result
 
 
 def _build_mermaid_erd(schema_files: list[dict]) -> str:
@@ -454,6 +647,43 @@ def _get_html_header(title: str) -> list[str]:
         "    .description {",
         "      color: #666;",
         "      margin-bottom: 20px;",
+        "    }",
+        "    .tabs {",
+        "      display: flex;",
+        "      flex-wrap: wrap;",
+        "      gap: 8px;",
+        "      margin-bottom: 15px;",
+        "      padding: 10px;",
+        "      background: #f8f9fa;",
+        "      border-radius: 8px;",
+        "      border: 1px solid #e0e0e0;",
+        "    }",
+        "    .tab-btn {",
+        "      padding: 10px 20px;",
+        "      border: 1px solid #ddd;",
+        "      background: white;",
+        "      border-radius: 6px;",
+        "      cursor: pointer;",
+        "      font-size: 14px;",
+        "      font-weight: 500;",
+        "      transition: all 0.2s;",
+        "      color: #555;",
+        "    }",
+        "    .tab-btn:hover {",
+        "      background: #e9ecef;",
+        "      border-color: #007AFF;",
+        "      color: #007AFF;",
+        "    }",
+        "    .tab-btn.active {",
+        "      background: #007AFF;",
+        "      color: white;",
+        "      border-color: #007AFF;",
+        "    }",
+        "    .tab-content {",
+        "      display: none;",
+        "    }",
+        "    .tab-content.active {",
+        "      display: block;",
         "    }",
         "    .zoom-controls {",
         "      display: flex;",
