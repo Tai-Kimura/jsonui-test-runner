@@ -1,0 +1,110 @@
+{
+  "$schema": "../../schemas/screen-test.schema.json",
+  "type": "screen",
+  "source": {
+    "layout": "Layouts/Login.json",
+    "spec": "specs/Login.md"
+  },
+  "metadata": {
+    "name": "ログイン画面テスト",
+    "description": "ログイン画面の表示・入力・認証フローをテストする",
+    "generatedAt": "2026-01-12T11:00:00Z",
+    "generatedBy": "test-agent-v1",
+    "tags": ["auth", "smoke"]
+  },
+  "platform": "all",
+  "initialState": {
+    "viewModel": {
+      "email": "",
+      "password": "",
+      "isLoading": false,
+      "errorMessage": null
+    }
+  },
+  "cases": [
+    {
+      "name": "初期表示確認",
+      "description": "画面の初期状態で全ての要素が正しく表示されていることを確認",
+      "steps": [
+        { "assert": "visible", "id": "email_input" },
+        { "assert": "visible", "id": "password_input" },
+        { "assert": "visible", "id": "login_button" },
+        { "assert": "disabled", "id": "login_button" },
+        { "assert": "notVisible", "id": "error_message" },
+        { "assert": "notVisible", "id": "loading_indicator" }
+      ]
+    },
+    {
+      "name": "メールアドレス入力でボタン無効のまま",
+      "description": "メールアドレスのみ入力した状態ではログインボタンは無効のまま",
+      "steps": [
+        { "action": "input", "id": "email_input", "value": "test@example.com" },
+        { "assert": "disabled", "id": "login_button" }
+      ]
+    },
+    {
+      "name": "両方入力でボタン有効化",
+      "description": "メールアドレスとパスワード両方入力するとログインボタンが有効になる",
+      "steps": [
+        { "action": "input", "id": "email_input", "value": "test@example.com" },
+        { "action": "input", "id": "password_input", "value": "password123" },
+        { "assert": "enabled", "id": "login_button" }
+      ]
+    },
+    {
+      "name": "無効なメールアドレスでエラー表示",
+      "description": "不正な形式のメールアドレスでログインしようとするとエラーが表示される",
+      "steps": [
+        { "action": "input", "id": "email_input", "value": "invalid-email" },
+        { "action": "input", "id": "password_input", "value": "password123" },
+        { "action": "tap", "id": "login_button" },
+        { "assert": "visible", "id": "error_message" },
+        { "assert": "text", "id": "error_message", "contains": "メールアドレス" }
+      ]
+    },
+    {
+      "name": "ログイン処理中の表示",
+      "description": "ログインボタンタップ後、ローディング表示に切り替わる",
+      "steps": [
+        { "action": "input", "id": "email_input", "value": "test@example.com" },
+        { "action": "input", "id": "password_input", "value": "password123" },
+        { "action": "tap", "id": "login_button" },
+        { "assert": "state", "path": "isLoading", "equals": true },
+        { "assert": "visible", "id": "loading_indicator" },
+        { "assert": "disabled", "id": "login_button" }
+      ]
+    },
+    {
+      "name": "ログイン成功",
+      "description": "正しい認証情報でログインするとホーム画面に遷移する",
+      "steps": [
+        { "action": "input", "id": "email_input", "value": "test@example.com" },
+        { "action": "input", "id": "password_input", "value": "correctpassword" },
+        { "action": "tap", "id": "login_button" },
+        { "action": "waitFor", "id": "home_screen", "timeout": 5000 }
+      ]
+    },
+    {
+      "name": "パスワード表示切り替え",
+      "description": "目のアイコンをタップするとパスワードの表示/非表示が切り替わる",
+      "platform": ["ios", "android"],
+      "steps": [
+        { "action": "input", "id": "password_input", "value": "password123" },
+        { "action": "tap", "id": "password_visibility_toggle" },
+        { "assert": "state", "path": "isPasswordVisible", "equals": true },
+        { "action": "tap", "id": "password_visibility_toggle" },
+        { "assert": "state", "path": "isPasswordVisible", "equals": false }
+      ]
+    },
+    {
+      "name": "入力クリア",
+      "description": "クリアボタンで入力内容が消去される",
+      "steps": [
+        { "action": "input", "id": "email_input", "value": "test@example.com" },
+        { "action": "tap", "id": "email_clear_button" },
+        { "assert": "text", "id": "email_input", "equals": "" },
+        { "assert": "disabled", "id": "login_button" }
+      ]
+    }
+  ]
+}

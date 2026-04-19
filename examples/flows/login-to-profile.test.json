@@ -1,0 +1,76 @@
+{
+  "$schema": "../../schemas/flow-test.schema.json",
+  "type": "flow",
+  "sources": [
+    { "layout": "Layouts/Login.json", "spec": "specs/Login.md", "alias": "Login" },
+    { "layout": "Layouts/Home.json", "spec": "specs/Home.md", "alias": "Home" },
+    { "layout": "Layouts/Profile.json", "spec": "specs/Profile.md", "alias": "Profile" }
+  ],
+  "metadata": {
+    "name": "ログイン〜プロフィール編集フロー",
+    "description": "ユーザーがログインしてプロフィールを編集・保存する一連の流れをテスト",
+    "generatedAt": "2026-01-12T11:00:00Z",
+    "generatedBy": "test-agent-v1",
+    "tags": ["e2e", "user-flow", "smoke"]
+  },
+  "platform": "all",
+  "initialState": {
+    "screen": "Login",
+    "viewModels": {
+      "Login": {
+        "email": "",
+        "password": "",
+        "isLoading": false
+      },
+      "Home": {
+        "userName": ""
+      },
+      "Profile": {
+        "displayName": "",
+        "isSaving": false
+      }
+    }
+  },
+  "steps": [
+    { "screen": "Login", "assert": "visible", "id": "email_input" },
+    { "screen": "Login", "action": "input", "id": "email_input", "value": "test@example.com" },
+    { "screen": "Login", "action": "input", "id": "password_input", "value": "password123" },
+    { "screen": "Login", "action": "tap", "id": "login_button" },
+
+    { "screen": "Home", "action": "waitFor", "id": "home_container", "timeout": 5000 },
+    { "screen": "Home", "assert": "visible", "id": "welcome_label" },
+    { "screen": "Home", "assert": "text", "id": "welcome_label", "contains": "ようこそ" },
+    { "screen": "Home", "action": "tap", "id": "profile_button" },
+
+    { "screen": "Profile", "action": "waitFor", "id": "profile_container", "timeout": 3000 },
+    { "screen": "Profile", "assert": "visible", "id": "display_name_input" },
+    { "screen": "Profile", "action": "clear", "id": "display_name_input" },
+    { "screen": "Profile", "action": "input", "id": "display_name_input", "value": "新しい表示名" },
+    { "screen": "Profile", "action": "tap", "id": "save_button" },
+
+    { "screen": "Profile", "assert": "state", "path": "isSaving", "equals": true },
+    { "screen": "Profile", "action": "waitFor", "id": "save_success_toast", "timeout": 5000 },
+    { "screen": "Profile", "assert": "visible", "id": "save_success_toast" },
+
+    { "screen": "Profile", "action": "tap", "id": "back_button" },
+    { "screen": "Home", "action": "waitFor", "id": "home_container", "timeout": 3000 },
+    { "screen": "Home", "assert": "text", "id": "user_name_label", "equals": "新しい表示名" }
+  ],
+  "checkpoints": [
+    {
+      "name": "ログイン完了",
+      "afterStep": 4,
+      "screenshot": true
+    },
+    {
+      "name": "プロフィール編集画面表示",
+      "afterStep": 8,
+      "screenshot": true
+    },
+    {
+      "name": "保存完了",
+      "afterStep": 14,
+      "screenshot": true
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: jsonui-test-cli
+Version: 1.0.0
+Summary: CLI tool for validating and generating documentation from JsonUI test files
+Author: Tai Kimura
+License-Expression: MIT
+Keywords: jsonui,testing,ui-testing,validation
+Classifier: Development Status :: 4 - Beta
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Software Development :: Testing
+Requires-Python: >=3.10
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0; extra == "dev"
