@@ -280,27 +280,27 @@ extension TestLoader {
         return TestStep(
             action: step.action,
             assert: step.assert,
-            id: substituteArgsInString(step.id, args: args),
-            ids: step.ids?.map { substituteArgsInString($0, args: args) ?? $0 },
-            text: substituteArgsInString(step.text, args: args),
-            value: substituteArgsInString(step.value, args: args),
+            id: substituteArgsInOptionalString(step.id, args: args),
+            ids: step.ids?.map { substituteArgsInString($0, args: args) },
+            text: substituteArgsInOptionalString(step.text, args: args),
+            value: substituteArgsInOptionalString(step.value, args: args),
             direction: step.direction,
             duration: step.duration,
             timeout: step.timeout,
             ms: step.ms,
             name: step.name,
             equals: substituteArgsInAnyCodable(step.equals, args: args),
-            contains: substituteArgsInString(step.contains, args: args),
+            contains: substituteArgsInOptionalString(step.contains, args: args),
             path: step.path,
             amount: step.amount,
-            button: substituteArgsInString(step.button, args: args),
-            label: substituteArgsInString(step.label, args: args),
+            button: substituteArgsInOptionalString(step.button, args: args),
+            label: substituteArgsInOptionalString(step.label, args: args),
             index: step.index
         )
     }
 
     /// Substitute @{varName} placeholders in an optional string
-    private func substituteArgsInString(_ string: String?, args: [String: Any]) -> String? {
+    private func substituteArgsInOptionalString(_ string: String?, args: [String: Any]) -> String? {
         guard let string = string else { return nil }
         return substituteArgsInString(string, args: args)
     }

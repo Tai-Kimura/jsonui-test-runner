@@ -85,6 +85,7 @@ public class XCUITestAssertionExecutor: AssertionExecutor {
             assert: flowStep.assert,
             id: flowStep.id,
             ids: flowStep.ids,
+            text: flowStep.text,
             value: flowStep.value,
             direction: flowStep.direction,
             duration: flowStep.duration,
@@ -94,7 +95,10 @@ public class XCUITestAssertionExecutor: AssertionExecutor {
             equals: flowStep.equals,
             contains: flowStep.contains,
             path: flowStep.path,
-            amount: flowStep.amount
+            amount: flowStep.amount,
+            button: flowStep.button,
+            label: flowStep.label,
+            index: flowStep.index
         )
 
         try execute(step: step, in: app)
@@ -109,11 +113,14 @@ public class XCUITestAssertionExecutor: AssertionExecutor {
 
         let element = findElementQuery(id: id, in: app)
 
-        // Wait for element and check visibility
+        // Wait for element and check visibility.
+        // SwiftUI accessibility *containers* (grouped stacks) report
+        // isHittable == false because hit-testing resolves to a child —
+        // fall back to a non-empty frame so visible containers pass.
         let exists = element.waitForExistence(timeout: defaultTimeout)
 
         XCTAssertTrue(
-            exists && element.isHittable,
+            exists && (element.isHittable || !element.frame.isEmpty),
             "Element '\(id)' should be visible"
         )
     }
@@ -167,8 +174,17 @@ public class XCUITestAssertionExecutor: AssertionExecutor {
 
         let element = try findElement(id: id, in: app)
 
-        // Get text from element (label or value)
-        let actualText = (element.value as? String) ?? element.label
+        // Get text from element (value first, then label).
+        // SwiftUI StaticText elements report an EMPTY string value (not nil)
+        // while the actual text lives in the label — treat empty value as
+        // missing so the label fallback actually fires.
+        let valueText = element.value as? String
+        let actualText: String = {
+            if let valueText = valueText, !valueText.isEmpty {
+                return valueText
+            }
+            return element.label
+        }()
 
         if let expectedEquals = step.equals?.stringValue {
             XCTAssertEqual(
