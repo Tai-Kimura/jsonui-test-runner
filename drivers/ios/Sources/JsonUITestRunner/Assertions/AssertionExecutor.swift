@@ -172,19 +172,45 @@ public class XCUITestAssertionExecutor: AssertionExecutor {
             throw AssertionError.missingParameter(assertion: "text", parameter: "id")
         }
 
+        guard step.equals?.stringValue != nil || step.contains != nil else {
+            throw AssertionError.missingParameter(assertion: "text", parameter: "equals or contains")
+        }
+
         let element = try findElement(id: id, in: app)
 
-        // Get text from element (value first, then label).
-        // SwiftUI StaticText elements report an EMPTY string value (not nil)
-        // while the actual text lives in the label — treat empty value as
-        // missing so the label fallback actually fires.
-        let valueText = element.value as? String
-        let actualText: String = {
+        // Read text from element (value first, then label). SwiftUI StaticText
+        // elements report an EMPTY string value (not nil) while the actual text
+        // lives in the label — treat empty value as missing so the label
+        // fallback actually fires.
+        func currentText() -> String {
+            let valueText = element.value as? String
             if let valueText = valueText, !valueText.isEmpty {
                 return valueText
             }
             return element.label
-        }()
+        }
+        func matches(_ actual: String) -> Bool {
+            if let expectedEquals = step.equals?.stringValue {
+                return actual == expectedEquals
+            }
+            if let expectedContains = step.contains {
+                return actual.contains(expectedContains)
+            }
+            return false
+        }
+
+        // Re-sample until the timeout instead of a single read. State-driven
+        // UIs (SwiftUI onClick/onTextChange handler -> @State -> re-render)
+        // update the mirrored text asynchronously, so a single snapshot right
+        // after the action races the re-render (common/onclick__callback_fire
+        // flaked "ready" vs "fired"). Mirrors the android driver's assertText
+        // retry and the web driver's auto-retrying expect().
+        let deadline = Date().addingTimeInterval(defaultTimeout)
+        var actualText = currentText()
+        while !matches(actualText) && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.1)
+            actualText = currentText()
+        }
 
         if let expectedEquals = step.equals?.stringValue {
             XCTAssertEqual(
@@ -197,8 +223,6 @@ public class XCUITestAssertionExecutor: AssertionExecutor {
                 actualText.contains(expectedContains),
                 "Element '\(id)' text '\(actualText)' should contain '\(expectedContains)'"
             )
-        } else {
-            throw AssertionError.missingParameter(assertion: "text", parameter: "equals or contains")
         }
     }
 

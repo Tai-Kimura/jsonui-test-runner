@@ -168,10 +168,15 @@ public class XCUITestActionExecutor: ActionExecutor {
         element.tap()
 
         // `input` SETS the field value (parity with the web driver's
-        // Playwright fill() and Android's setText): clear existing text
-        // first. Note element.value shows the placeholder when the field is
-        // empty, so clearing may no-op — that is harmless.
-        if let existing = element.value as? String, !existing.isEmpty {
+        // Playwright fill() and Android's setText): clear existing text first.
+        // CRITICAL: element.value returns the PLACEHOLDER for an empty field,
+        // so guard the clear against placeholderValue — otherwise an empty
+        // field (value == placeholder) wrongly enters the clear branch, whose
+        // bottom-right coordinate tap drops keyboard focus and makes the
+        // following typeText fail with "no keyboard focus".
+        if let existing = element.value as? String,
+           !existing.isEmpty,
+           existing != element.placeholderValue {
             // Caret position after tap() is unspecified (TextEditor tends to
             // put it at the start): tap the bottom-right of the element to
             // move the caret to the end, then backspace through everything.
