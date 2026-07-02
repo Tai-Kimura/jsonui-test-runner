@@ -1,0 +1,6 @@
+[submodule "drivers/android"]
+	path = drivers/android
+	url = git@github.com:Tai-Kimura/jsonui-test-runner-android.git
+[submodule "drivers/web"]
+	path = drivers/web
+	url = git@github.com:Tai-Kimura/jsonui-test-runner-web.git
