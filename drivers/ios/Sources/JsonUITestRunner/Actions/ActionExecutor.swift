@@ -164,7 +164,7 @@ public class XCUITestActionExecutor: ActionExecutor {
             throw ActionError.missingParameter(action: "input", parameter: "value")
         }
 
-        let element = try findElement(id: id, in: app)
+        let element = try findTypableElement(id: id, in: app)
         element.tap()
 
         // `input` SETS the field value (parity with the web driver's
@@ -192,7 +192,7 @@ public class XCUITestActionExecutor: ActionExecutor {
             throw ActionError.missingParameter(action: "clear", parameter: "id")
         }
 
-        let element = try findElement(id: id, in: app)
+        let element = try findTypableElement(id: id, in: app)
         element.tap()
 
         // Select all and delete
@@ -644,6 +644,27 @@ public class XCUITestActionExecutor: ActionExecutor {
         }
 
         return element
+    }
+
+    /// Element resolution for text-input actions. The generic `.any`
+    /// firstMatch can resolve an identifier to a mirror StaticText (SwiftUI
+    /// exposes a field's mirrored label under the same id), which cannot
+    /// take keyboard focus — typeText then fails with "Neither element nor
+    /// any descendant has keyboard focus". Prefer typable element types and
+    /// only fall back to the generic match.
+    private func findTypableElement(id: String, in app: XCUIApplication) throws -> XCUIElement {
+        let generic = findElementQuery(id: id, in: app)
+        guard generic.waitForExistence(timeout: defaultTimeout) else {
+            throw ActionError.elementNotFound(id: id)
+        }
+        let typableTypes: [XCUIElement.ElementType] = [.textField, .secureTextField, .textView, .searchField]
+        for type in typableTypes {
+            let candidate = app.descendants(matching: type).matching(identifier: id).firstMatch
+            if candidate.exists {
+                return candidate
+            }
+        }
+        return generic
     }
 
     /// Tap on a specific text portion within an element
