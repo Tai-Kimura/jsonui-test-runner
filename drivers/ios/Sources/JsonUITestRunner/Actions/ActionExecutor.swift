@@ -123,7 +123,7 @@ public class XCUITestActionExecutor: ActionExecutor {
             throw ActionError.missingParameter(action: "tap", parameter: "id")
         }
 
-        let element = try findElement(id: id, in: app)
+        let element = try findTappableElement(id: id, in: app)
 
         // If text is specified, tap on the specific text portion within the element
         if let targetText = step.text {
@@ -138,7 +138,7 @@ public class XCUITestActionExecutor: ActionExecutor {
             throw ActionError.missingParameter(action: "doubleTap", parameter: "id")
         }
 
-        let element = try findElement(id: id, in: app)
+        let element = try findTappableElement(id: id, in: app)
         element.doubleTap()
     }
 
@@ -147,7 +147,7 @@ public class XCUITestActionExecutor: ActionExecutor {
             throw ActionError.missingParameter(action: "longPress", parameter: "id")
         }
 
-        let element = try findElement(id: id, in: app)
+        let element = try findTappableElement(id: id, in: app)
         // Default 800ms, not 500ms: the iOS long-press recognizer minimum
         // (SwiftUI LongPressGesture / UILongPressGestureRecognizer) is 0.5s,
         // so a press of exactly 500ms races the recognizer and fires only
@@ -663,6 +663,46 @@ public class XCUITestActionExecutor: ActionExecutor {
             if candidate.exists {
                 return candidate
             }
+        }
+        return generic
+    }
+
+    /// Element resolution for tap-like actions (tap / doubleTap / longPress).
+    /// The generic `.any` firstMatch can resolve an identifier to a mirror
+    /// StaticText or a non-interactive wrapper under the same id — the tap
+    /// then lands on an element that swallows it and the control's callback
+    /// never fires. Snapshot traversal order is not stable across runs, so
+    /// this surfaces as intermittent conformance failures
+    /// (common/onclick__callback_fire, Toggle/onValueChange__callback_fire).
+    /// Prefer interactive element types, then any hittable match, and only
+    /// fall back to the generic match.
+    private func findTappableElement(id: String, in app: XCUIApplication) throws -> XCUIElement {
+        let generic = findElementQuery(id: id, in: app)
+        guard generic.waitForExistence(timeout: defaultTimeout) else {
+            throw ActionError.elementNotFound(id: id)
+        }
+        let interactiveTypes: [XCUIElement.ElementType] = [
+            .button, .switch, .toggle, .checkBox, .segmentedControl,
+            .slider, .stepper, .link, .cell,
+        ]
+        for type in interactiveTypes {
+            let candidate = app.descendants(matching: type).matching(identifier: id).firstMatch
+            if candidate.exists {
+                return candidate
+            }
+        }
+        // No interactive-typed match — scan the first few generic matches for
+        // a hittable one (the mirror StaticText of an offscreen control is
+        // typically not hittable at the control's position).
+        let matches = app.descendants(matching: .any).matching(identifier: id)
+        let count = min(matches.count, 8)
+        var index = 0
+        while index < count {
+            let candidate = matches.element(boundBy: index)
+            if candidate.exists && candidate.isHittable {
+                return candidate
+            }
+            index += 1
         }
         return generic
     }
