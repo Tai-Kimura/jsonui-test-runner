@@ -9,7 +9,7 @@ JSONで定義されたテストケースを、iOS・Android・Webで統一的に
 ### 特徴
 
 - **宣言的テスト定義**: テストケースをJSONで記述
-- **クロスプラットフォーム**: iOS (XCUITest) / Android (Espresso) / Web (Playwright) 対応
+- **クロスプラットフォーム**: iOS (XCUITest) / Android (UIAutomator) / Web (Playwright) 対応
 - **AIエージェント連携**: レイアウトJSONと仕様書からテストケースを自動生成
 - **柔軟なテスト構成**: 画面単体テストとフローテストの両方に対応
 
@@ -69,7 +69,7 @@ jsonui-test-runner/
 │   └── actions.schema.json
 ├── drivers/                    # プラットフォーム別ドライバー
 │   ├── ios/                    # XCUITest実装
-│   ├── android/                # Espresso実装
+│   ├── android/                # UIAutomator実装
 │   └── web/                    # Playwright実装
 ├── core/                       # 共通ロジック
 │   ├── runner.ts

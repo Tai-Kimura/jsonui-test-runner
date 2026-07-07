@@ -35,7 +35,7 @@ JsonUIライブラリ（SwiftJsonUI / KotlinJsonUI / ReactJsonUI）向けのク�
 └───┬───┘   └────┬────┘   └────┬────┘
     │            │              │
     ▼            ▼              ▼
- XCUITest    Espresso      Playwright
+ XCUITest   UIAutomator    Playwright
 ```
 
 ## 実装フェーズ
@@ -59,8 +59,8 @@ JsonUIライブラリ（SwiftJsonUI / KotlinJsonUI / ReactJsonUI）向けのク�
 - [ ] SwiftJsonUIとの連携テスト
 - [ ] id属性 → accessibilityIdentifier のマッピング確認
 
-### Phase 4: Android（Espresso）ドライバー実装
-- [ ] Espresso環境セットアップ
+### Phase 4: Android（UIAutomator）ドライバー実装
+- [ ] UIAutomator環境セットアップ
 - [ ] アクション実装
 - [ ] アサーション実装
 - [ ] KotlinJsonUIとの連携テスト
@@ -261,7 +261,7 @@ JsonUIの `id` 属性を使用して要素を特定する。
 
 - **Core**: TypeScript / Node.js
 - **iOS Driver**: Swift + XCUITest
-- **Android Driver**: Kotlin + Espresso
+- **Android Driver**: Kotlin + UIAutomator
 - **Web Driver**: TypeScript + Playwright
 - **CLI**: Commander.js or oclif
 - **CI/CD**: GitHub Actions
