@@ -52,3 +52,6 @@ test_tools/*.egg-info/
 __pycache__/
 *.pyc
 *.pyo
+
+# Local-only development docs (plans, notes) — not for the public repo
+docs/

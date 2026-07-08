@@ -1,0 +1,93 @@
+{
+  "$schema": "../../schemas/screen-test.schema.json",
+  "type": "screen",
+  "source": {
+    "layout": "Layouts/Checkout.json",
+    "spec": "specs/Checkout.md"
+  },
+  "metadata": {
+    "name": "チェックアウト画面テスト",
+    "description": "新機能 (launch / scrollUntilVisible / readText / repeat / retry / when / optional / screenshot) のリファレンス例",
+    "generatedAt": "2026-07-08T12:00:00Z",
+    "generatedBy": "test-agent-v1",
+    "tags": ["checkout", "reference"]
+  },
+  "platform": "all",
+  "launch": {
+    "clearState": true,
+    "permissions": { "location": "allow", "notifications": "deny" },
+    "arguments": { "mockApi": true, "apiBase": "http://localhost:8080" }
+  },
+  "initialState": {
+    "viewModel": {
+      "cartItems": [],
+      "isSubmitting": false
+    }
+  },
+  "cases": [
+    {
+      "name": "初期表示のビジュアル確認",
+      "description": "初期表示をベースライン画像と比較する（初回実行時はベースラインを作成して警告付きで成功）",
+      "steps": [
+        { "assert": "visible", "id": "checkout_root" },
+        { "assert": "screenshot", "name": "checkout_initial", "cropId": "summary_card", "threshold": 98.0 }
+      ]
+    },
+    {
+      "name": "長いフォームの送信",
+      "description": "画面外の送信ボタンまでスクロールして送信し、注文番号を控えて完了画面で照合する",
+      "steps": [
+        { "action": "input", "id": "address_input", "value": "東京都千代田区1-1" },
+        { "action": "scrollUntilVisible", "id": "submit_button", "container": "checkout_scroll", "direction": "down" },
+        { "assert": "enabled", "id": "submit_button", "timeout": 8000 },
+        { "action": "tap", "id": "submit_button", "retryTapIfNoChange": true },
+        { "action": "waitFor", "id": "order_complete_screen", "timeout": 10000 },
+        { "action": "readText", "id": "order_number_label", "variable": "orderNo" },
+        { "action": "tap", "id": "order_detail_link" },
+        { "assert": "text", "id": "detail_order_number", "equals": "@{orderNo}" }
+      ]
+    },
+    {
+      "name": "カートに商品を3つ追加",
+      "description": "repeat で同じ操作を繰り返す。チュートリアルが出た場合のみ閉じる (when + optional)",
+      "steps": [
+        { "action": "tap", "id": "tutorial_close_button", "when": { "visible": "tutorial_overlay" }, "optional": true, "label": "チュートリアルを閉じる（表示時のみ）" },
+        {
+          "action": "repeat",
+          "times": 3,
+          "label": "商品を3回追加",
+          "steps": [
+            { "action": "tap", "id": "add_item_button" }
+          ]
+        },
+        { "assert": "count", "id": "cart_item_row", "equals": 3 },
+        { "assert": "state", "path": "cartItems.length", "equals": 3, "when": { "platform": "web" } }
+      ]
+    },
+    {
+      "name": "不安定な外部連携のリトライ",
+      "description": "在庫確認のように一時的に失敗しうるブロックを retry で包む（上限3回・設計上の意図）",
+      "steps": [
+        {
+          "action": "retry",
+          "maxRetries": 2,
+          "label": "在庫確認",
+          "steps": [
+            { "action": "tap", "id": "check_stock_button" },
+            { "assert": "visible", "id": "stock_ok_badge", "timeout": 3000 }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "位置情報による配送料計算",
+      "description": "モック位置情報を設定して配送料の再計算を確認する（addMedia 同様プラットフォーム差あり）",
+      "platform": ["web", "android"],
+      "steps": [
+        { "action": "setLocation", "latitude": 35.6812, "longitude": 139.7671 },
+        { "action": "tap", "id": "use_current_location_button" },
+        { "assert": "text", "id": "shipping_fee_label", "contains": "東京", "timeout": 8000 }
+      ]
+    }
+  ]
+}

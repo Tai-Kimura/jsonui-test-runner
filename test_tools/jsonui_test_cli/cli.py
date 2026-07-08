@@ -14,6 +14,7 @@ from datetime import datetime
 
 from . import __version__
 from .validator import TestValidator
+from .report import load_results_file, generate_junit, generate_html
 
 
 def cmd_validate(args):
@@ -195,6 +196,54 @@ def cmd_generate_description(args):
     return 0
 
 
+def cmd_report(args):
+    """Handle 'report' command - convert results JSON to JUnit XML or HTML."""
+    runs = []
+    total_errors = 0
+
+    for path in args.files:
+        file_path = Path(path)
+        if not file_path.exists():
+            print(f"Error: Results file not found: {path}", file=sys.stderr)
+            total_errors += 1
+            continue
+
+        data, errors = load_results_file(file_path)
+        if errors:
+            print(f"\n{file_path}", file=sys.stderr)
+            for error in errors:
+                print(f"  [ERROR] {error}", file=sys.stderr)
+            total_errors += len(errors)
+            continue
+
+        runs.append(data)
+
+    if total_errors > 0:
+        print(f"\nError: {total_errors} error(s) in results file(s). "
+              f"Input must match results.schema.json (jsonui-test-results format).", file=sys.stderr)
+        return 1
+
+    if args.format == "junit":
+        content = generate_junit(runs)
+        default_output = "report.xml"
+    else:
+        content = generate_html(runs)
+        default_output = "report.html"
+
+    output = Path(args.output) if args.output else Path(default_output)
+    if output.parent != Path('.'):
+        output.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    total_cases = sum(len(s.get("results", [])) for run in runs for s in run.get("suites", []))
+    print(f"Created {args.format} report: {output}")
+    print(f"  Files: {len(runs)}, Test cases: {total_cases}")
+
+    return 0
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -329,6 +378,28 @@ def main():
         help="Output file path (default: tests/flows/<name>/descriptions/<case_name>.json)"
     )
 
+    # Report command
+    report_parser = subparsers.add_parser(
+        "report",
+        aliases=["r"],
+        help="Convert results JSON (results.schema.json) to JUnit XML or HTML"
+    )
+    report_parser.add_argument(
+        "files",
+        nargs="+",
+        help="Results JSON files to convert (multiple inputs merge into one report)"
+    )
+    report_parser.add_argument(
+        "-f", "--format",
+        choices=["junit", "html"],
+        required=True,
+        help="Report format"
+    )
+    report_parser.add_argument(
+        "-o", "--output",
+        help="Output file path (default: report.xml / report.html)"
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -337,6 +408,8 @@ def main():
 
     if args.command in ["validate", "v"]:
         return cmd_validate(args)
+    elif args.command in ["report", "r"]:
+        return cmd_report(args)
     elif args.command in ["generate", "g"]:
         # Check for subcommand
         if hasattr(args, 'generate_type') and args.generate_type:

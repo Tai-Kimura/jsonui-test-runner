@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .models import ValidationMessage, ValidationResult
 from .step import StepValidator
+from .launch import validate_launch
 
 
 class FlowTestValidator:
@@ -25,6 +26,10 @@ class FlowTestValidator:
         # Warn if file references use subdirectories
         self._check_subdirectory_references(data, path, result)
 
+        # Validate launch configuration if present
+        if "launch" in data:
+            validate_launch(data["launch"], f"{path}.launch", result)
+
         # Validate steps
         steps = data.get("steps", [])
         if not steps:
@@ -37,6 +42,13 @@ class FlowTestValidator:
         for i, step in enumerate(steps):
             step_path = f"{path}.steps[{i}]"
             self._step_validator.validate_step(step, step_path, result, is_flow=True)
+
+        # Validate setup/teardown if present
+        for section in ["setup", "teardown"]:
+            if section in data:
+                for i, step in enumerate(data[section]):
+                    step_path = f"{path}.{section}[{i}]"
+                    self._step_validator.validate_step(step, step_path, result, is_flow=True)
 
     def _check_subdirectory_references(self, data: dict, path: str, result: ValidationResult):
         """Check for file references that use unsupported subdirectory paths."""

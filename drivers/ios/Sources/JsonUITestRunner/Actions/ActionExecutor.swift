@@ -1,4 +1,7 @@
 import XCTest
+#if canImport(CoreLocation)
+import CoreLocation
+#endif
 
 /// Protocol for executing test actions
 public protocol ActionExecutor {
@@ -38,9 +41,12 @@ public class XCUITestActionExecutor: ActionExecutor {
 
     private let defaultTimeout: TimeInterval = 5.0
     private let platform: String
+    /// Runtime variable store written by readText and read by the runner for @{name} substitution
+    private let variables: VariableStore
 
-    public init(platform: String = "ios") {
+    public init(platform: String = "ios", variables: VariableStore = VariableStore()) {
         self.platform = platform
+        self.variables = variables
     }
 
     public func execute(step: TestStep, in app: XCUIApplication) throws {
@@ -61,6 +67,8 @@ public class XCUITestActionExecutor: ActionExecutor {
             try executeClear(step: step, in: app)
         case "scroll":
             try executeScroll(step: step, in: app)
+        case "scrollUntilVisible":
+            try executeScrollUntilVisible(step: step, in: app)
         case "swipe":
             try executeSwipe(step: step, in: app)
         case "waitFor":
@@ -81,6 +89,14 @@ public class XCUITestActionExecutor: ActionExecutor {
             try executeTapItem(step: step, in: app)
         case "selectTab":
             try executeSelectTab(step: step, in: app)
+        case "readText":
+            try executeReadText(step: step, in: app)
+        case "setLocation":
+            try executeSetLocation(step: step)
+        case "addMedia":
+            throw ActionError.actionFailed(action: "addMedia", reason: "addMedia is not supported on the iOS driver")
+        case "repeat", "retry":
+            throw ActionError.actionFailed(action: action, reason: "'\(action)' is a control step handled by the test runner")
         default:
             throw ActionError.unknownAction(action: action)
         }
@@ -90,30 +106,7 @@ public class XCUITestActionExecutor: ActionExecutor {
         guard flowStep.action != nil else {
             throw ActionError.unknownAction(action: "nil")
         }
-
-        // Convert FlowTestStep to TestStep for reuse
-        let step = TestStep(
-            action: flowStep.action,
-            assert: flowStep.assert,
-            id: flowStep.id,
-            ids: flowStep.ids,
-            text: flowStep.text,
-            value: flowStep.value,
-            direction: flowStep.direction,
-            duration: flowStep.duration,
-            timeout: flowStep.timeout,
-            ms: flowStep.ms,
-            name: flowStep.name,
-            equals: flowStep.equals,
-            contains: flowStep.contains,
-            path: flowStep.path,
-            amount: flowStep.amount,
-            button: flowStep.button,
-            label: flowStep.label,
-            index: flowStep.index
-        )
-
-        try execute(step: step, in: app)
+        try execute(step: flowStep.toTestStep(), in: app)
     }
 
     // MARK: - Action Implementations
@@ -128,6 +121,17 @@ public class XCUITestActionExecutor: ActionExecutor {
         // If text is specified, tap on the specific text portion within the element
         if let targetText = step.text {
             try tapTextPortion(element: element, targetText: targetText, fullText: element.label)
+            return
+        }
+
+        if step.retryTapIfNoChange == true {
+            // Ghost-tap mitigation: re-tap once if the hierarchy did not change
+            let before = app.debugDescription
+            element.tap()
+            Thread.sleep(forTimeInterval: 0.5)
+            if app.debugDescription == before {
+                element.tap()
+            }
         } else {
             element.tap()
         }
@@ -226,6 +230,103 @@ public class XCUITestActionExecutor: ActionExecutor {
         }
     }
 
+    private func executeScrollUntilVisible(step: TestStep, in app: XCUIApplication) throws {
+        guard let id = step.id else {
+            throw ActionError.missingParameter(action: "scrollUntilVisible", parameter: "id")
+        }
+        let direction = step.direction ?? "down"
+        let timeout = step.timeoutInterval(default: 20.0)
+
+        func targetVisible() -> Bool {
+            let element = findElementQuery(id: id, in: app)
+            return element.exists && (element.isHittable || !element.frame.isEmpty)
+        }
+
+        if targetVisible() {
+            return
+        }
+
+        // Resolve the scrollable container: explicit id, else the first scroll view,
+        // else the whole app as a swipe surface.
+        let scroller: XCUIElement
+        if let containerId = step.container {
+            scroller = findElementQuery(id: containerId, in: app)
+        } else if app.scrollViews.firstMatch.exists {
+            scroller = app.scrollViews.firstMatch
+        } else {
+            scroller = app
+        }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        var previousSnapshot = ""
+        var unchangedCount = 0
+
+        while Date() < deadline {
+            switch direction {
+            case "up": scroller.swipeDown()
+            case "down": scroller.swipeUp()
+            case "left": scroller.swipeRight()
+            case "right": scroller.swipeLeft()
+            default:
+                throw ActionError.actionFailed(action: "scrollUntilVisible", reason: "Invalid direction: \(direction)")
+            }
+
+            if targetVisible() {
+                return
+            }
+
+            // End-reached detection: two consecutive scrolls with no hierarchy change
+            let snapshot = app.debugDescription
+            if snapshot == previousSnapshot {
+                unchangedCount += 1
+                if unchangedCount >= 1 {
+                    throw ActionError.actionFailed(
+                        action: "scrollUntilVisible",
+                        reason: "Element '\(id)' not found after scrolling to the end"
+                    )
+                }
+            } else {
+                unchangedCount = 0
+            }
+            previousSnapshot = snapshot
+        }
+
+        throw ActionError.timeout(id: id, timeout: Int(timeout * 1000))
+    }
+
+    private func executeReadText(step: TestStep, in app: XCUIApplication) throws {
+        guard let id = step.id else {
+            throw ActionError.missingParameter(action: "readText", parameter: "id")
+        }
+        guard let variable = step.variable else {
+            throw ActionError.missingParameter(action: "readText", parameter: "variable")
+        }
+        let element = try findElement(id: id, in: app)
+        let text: String
+        if let valueText = element.value as? String, !valueText.isEmpty {
+            text = valueText
+        } else {
+            text = element.label
+        }
+        variables.set(variable, to: text)
+    }
+
+    private func executeSetLocation(step: TestStep) throws {
+        guard let latitude = step.latitude, let longitude = step.longitude else {
+            throw ActionError.missingParameter(action: "setLocation", parameter: "latitude/longitude")
+        }
+        #if canImport(CoreLocation)
+        if #available(iOS 16.4, *) {
+            let location = CLLocation(latitude: latitude, longitude: longitude)
+            XCUIDevice.shared.location = XCUILocation(location: location)
+        } else {
+            throw ActionError.actionFailed(action: "setLocation", reason: "setLocation requires iOS 16.4 or newer")
+        }
+        #else
+        throw ActionError.actionFailed(action: "setLocation", reason: "CoreLocation is not available")
+        #endif
+    }
+
     private func executeSwipe(step: TestStep, in app: XCUIApplication) throws {
         guard let id = step.id else {
             throw ActionError.missingParameter(action: "swipe", parameter: "id")
@@ -313,15 +414,14 @@ public class XCUITestActionExecutor: ActionExecutor {
             throw ActionError.missingParameter(action: "screenshot", parameter: "name")
         }
 
+        // Save the screenshot PNG to a screenshots directory under the temp dir.
+        // (Failure/checkpoint screenshots are attached as XCTAttachment by the runner;
+        // this explicit action persists a named capture that survives outside a test.)
         let screenshot = app.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-
-        // Note: XCTContext.runActivity is used to attach screenshots in actual tests
-        XCTContext.runActivity(named: "Screenshot: \(name)") { activity in
-            activity.add(attachment)
-        }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("jsonui-screenshots", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent("\(name).png")
+        try screenshot.pngRepresentation.write(to: url)
     }
 
     private func executeAlertTap(step: TestStep, in app: XCUIApplication) throws {

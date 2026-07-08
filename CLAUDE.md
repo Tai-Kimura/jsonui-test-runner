@@ -163,29 +163,51 @@ tests/
 
 | アクション | 説明 | 必須パラメータ | オプション |
 |-----------|------|---------------|-----------|
-| `tap` | 要素をタップ | `id` | - |
+| `tap` | 要素をタップ | `id` | `text`, `retryTapIfNoChange` |
 | `doubleTap` | ダブルタップ | `id` | - |
 | `longPress` | 長押し | `id` | `duration` (ms) |
 | `input` | テキスト入力 | `id`, `value` | - |
 | `clear` | 入力クリア | `id` | - |
 | `scroll` | スクロール | `id`, `direction` | `amount` |
+| `scrollUntilVisible` | 要素が見えるまでスクロール | `id` | `container`, `direction` (default: down), `timeout` (default: 20000) |
 | `swipe` | スワイプ | `id`, `direction` | - |
 | `waitFor` | 要素出現待機 | `id` | `timeout` (ms, default: 5000) |
+| `waitForAny` | いずれかの要素出現待機 | `ids` | `timeout` |
 | `wait` | 固定時間待機 | `ms` | - |
 | `back` | 戻る操作 | - | - |
 | `screenshot` | スクショ保存 | `name` | - |
+| `alertTap` | アラートのボタンタップ | `button` | `timeout` |
+| `selectOption` | ドロップダウン/ピッカー選択 | `id` | `value`, `label`, `index` |
+| `tapItem` | コレクション内アイテムタップ | `id`, `index` | `timeout` |
+| `selectTab` | タブ選択 | `id`, `index` | `timeout` |
+| `readText` | テキストを実行時変数に読む | `id`, `variable` | `timeout` |
+| `repeat` | ステップ群の繰り返し | `steps` + `times`か`while` | - |
+| `retry` | 失敗時ブロック再実行 | `steps` | `maxRetries` (0-3, default: 1) |
+| `setLocation` | モック位置情報 | `latitude`, `longitude` | - |
+| `addMedia` | ギャラリーにメディア追加 (Androidのみ) | `paths` | - |
 
 ### アサーション一覧
 
+全アサーションはauto-wait（100msポーリング、成立で即成功、デフォルト5000ms / `timeout`で上書き）。
+
 | アサーション | 説明 | 必須パラメータ | オプション |
 |-------------|------|---------------|-----------|
-| `visible` | 表示確認 | `id` | - |
-| `notVisible` | 非表示確認 | `id` | - |
-| `enabled` | 有効確認 | `id` | - |
-| `disabled` | 無効確認 | `id` | - |
-| `text` | テキスト検証 | `id` | `equals`, `contains` |
-| `count` | 要素数検証 | `id`, `equals` | - |
-| `state` | VM状態検証 | `path`, `equals` | - |
+| `visible` | 表示確認 | `id` | `timeout` |
+| `notVisible` | 非表示確認 | `id` | `timeout` |
+| `enabled` | 有効確認 | `id` | `timeout` |
+| `disabled` | 無効確認 | `id` | `timeout` |
+| `text` | テキスト検証 | `id` | `equals`, `contains`, `timeout` |
+| `count` | 要素数検証 | `id`, `equals` | `timeout` |
+| `state` | VM状態検証 | `path`, `equals` | `timeout` |
+| `screenshot` | ベースライン画像比較 | `name` | `cropId`, `threshold` (default: 98.0) |
+
+### 共通ステップ属性 / launch / 実行時変数 / レポート
+
+- 全ステップ共通: `label`（表示名。`selectOption`のみ従来の選択肢ラベルの意味）、`optional`（失敗を警告に降格）、`when`（事前条件: `visible`/`notVisible`/`platform`/`state`のAND。不成立でスキップ）
+- テストルートの `launch`: `clearState` / `permissions` / `arguments`（起動前適用）
+- `readText`で読んだ値は `@{変数名}` で実行時参照（ロード時args置換→実行時変数の順で解決）
+- 結果JSON（`schemas/results.schema.json`）→ `jsonui-test report --format junit|html` で変換
+- セマンティクスのSSoT: `docs/specs/2026-07-08-advanced-test-features.md`（ドライバー実装は必ずここに従う）
 
 ## 要素の特定方法
 

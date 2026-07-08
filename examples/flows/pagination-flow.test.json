@@ -1,0 +1,41 @@
+{
+  "$schema": "../../schemas/flow-test.schema.json",
+  "type": "flow",
+  "metadata": {
+    "name": "商品一覧ページネーションフロー",
+    "description": "新機能 (ファイル参照 args / when / block / repeat-while) のリファレンス例",
+    "generatedAt": "2026-07-08T12:00:00Z",
+    "generatedBy": "test-agent-v1",
+    "tags": ["e2e", "reference"]
+  },
+  "platform": "all",
+  "launch": {
+    "clearState": true,
+    "arguments": { "mockApi": true }
+  },
+  "steps": [
+    { "file": "Login", "case": "ログイン成功", "args": { "email": "buyer@example.com" } },
+
+    {
+      "block": "一覧の最後まで読み込む",
+      "description": "「もっと見る」が消えるまでタップし続ける (repeat + while)",
+      "steps": [
+        { "action": "waitFor", "id": "product_list", "timeout": 5000 },
+        {
+          "action": "repeat",
+          "times": 20,
+          "while": { "visible": "load_more_button" },
+          "steps": [
+            { "action": "tap", "id": "load_more_button" },
+            { "assert": "notVisible", "id": "loading_indicator", "timeout": 8000 }
+          ]
+        },
+        { "assert": "visible", "id": "list_end_marker" }
+      ]
+    },
+
+    { "file": "ProductDetail", "case": "詳細表示", "when": { "platform": ["ios", "android"] } },
+
+    { "screen": "ProductList", "action": "screenshot", "name": "list_fully_loaded", "label": "全件読み込み後の一覧" }
+  ]
+}

@@ -6,6 +6,12 @@ build-backend = "setuptools.build_meta"
 where = ["."]
 include = ["jsonui_test_cli*"]
 
+[tool.setuptools.package-data]
+# Non-.py assets shipped inside the package so they survive the installer's
+# untracked copy + `pip install .` (see installer/install_jsonui_test.sh).
+# Read at runtime via importlib.resources, never by repo-relative path.
+jsonui_test_cli = ["static/*", "schemas/*.json"]
+
 [project]
 name = "jsonui-test-cli"
 version = "1.0.0"

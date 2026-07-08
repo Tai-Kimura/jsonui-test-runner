@@ -9,12 +9,17 @@
 # - "all": All platforms
 SUPPORTED_PLATFORMS = ["ios", "ios-swiftui", "ios-uikit", "android", "web", "all"]
 
+# Platform values allowed in condition objects (when / repeat.while)
+CONDITION_PLATFORMS = ["ios", "android", "web", "all"]
+# Platform values allowed inside a condition platform array (no "all")
+CONDITION_PLATFORM_ARRAY_ITEMS = ["ios", "android", "web"]
+
 # Cross-platform supported actions and their required/optional parameters
 SUPPORTED_ACTIONS = {
     "tap": {
         "description": "Tap on an element",
         "required": ["id"],
-        "optional": ["text", "timeout"]
+        "optional": ["text", "retryTapIfNoChange", "timeout"]
     },
     "doubleTap": {
         "description": "Double tap on an element",
@@ -40,6 +45,11 @@ SUPPORTED_ACTIONS = {
         "description": "Scroll within an element",
         "required": ["id", "direction"],
         "optional": ["amount", "timeout"]
+    },
+    "scrollUntilVisible": {
+        "description": "Scroll until the target element becomes visible",
+        "required": ["id"],
+        "optional": ["container", "direction", "timeout"]
     },
     "swipe": {
         "description": "Swipe gesture on an element",
@@ -87,13 +97,39 @@ SUPPORTED_ACTIONS = {
         "optional": ["timeout"]
     },
     "selectTab": {
-        "description": "Select a tab by index in a TabView/TabBar. For ios-uikit, id is optional (uses UITabBarController directly). For ios-swiftui/android/web, id is required (uses {id}_tab_{index} pattern).",
-        "required": ["index"],
-        "optional": ["id", "timeout"]
+        "description": "Select a tab by index in a TabView/TabBar (tab is resolved as {id}_tab_{index})",
+        "required": ["id", "index"],
+        "optional": ["timeout"]
+    },
+    "readText": {
+        "description": "Read the element's text into a runtime variable (referenced later as @{name})",
+        "required": ["id", "variable"],
+        "optional": ["timeout"]
+    },
+    "repeat": {
+        "description": "Repeat a block of steps ('times' and/or 'while' condition)",
+        "required": ["steps"],
+        "optional": ["times", "while"]
+    },
+    "retry": {
+        "description": "Retry a block of steps when any step inside fails",
+        "required": ["steps"],
+        "optional": ["maxRetries"]
+    },
+    "setLocation": {
+        "description": "Set the mock device/browser geolocation",
+        "required": ["latitude", "longitude"],
+        "optional": []
+    },
+    "addMedia": {
+        "description": "Insert media files into the device gallery (Android only)",
+        "required": ["paths"],
+        "optional": []
     }
 }
 
 # Cross-platform supported assertions and their required/optional parameters
+# All assertions accept an optional 'timeout' (auto-wait polling).
 SUPPORTED_ASSERTIONS = {
     "visible": {
         "description": "Assert element is visible",
@@ -124,16 +160,49 @@ SUPPORTED_ASSERTIONS = {
         "description": "Assert element count",
         "required": ["id", "equals"],
         "optional": ["timeout"]
+    },
+    "state": {
+        "description": "Assert ViewModel state value (requires a state provider)",
+        "required": ["path", "equals"],
+        "optional": ["timeout"]
+    },
+    "screenshot": {
+        "description": "Visual regression: compare capture against a named baseline",
+        "required": ["name"],
+        "optional": ["cropId", "threshold", "timeout"]
     }
 }
 
 # Valid direction values
 VALID_DIRECTIONS = ["up", "down", "left", "right"]
 
+# Common step attributes accepted on every action/assertion.
+# NOTE: on selectOption, 'label' keeps its legacy meaning (option text to select).
+COMMON_STEP_ATTRIBUTES = ["label", "optional", "when"]
+
+# Valid keys in a condition object (when / repeat.while). Unknown keys are errors.
+VALID_CONDITION_KEYS = ["visible", "notVisible", "platform", "state"]
+
+# Valid keys in a condition 'state' object
+VALID_CONDITION_STATE_KEYS = ["path", "equals"]
+
+# Valid keys in the root-level 'launch' object
+VALID_LAUNCH_KEYS = ["clearState", "permissions", "arguments"]
+
+# Cross-platform permission names for launch.permissions
+VALID_PERMISSION_NAMES = [
+    "camera", "microphone", "location", "notifications",
+    "photos", "contacts", "calendar", "bluetooth"
+]
+
+# Valid permission values
+VALID_PERMISSION_VALUES = ["allow", "deny", "unset"]
+
 # Valid top-level keys in test file
 VALID_TOP_LEVEL_KEYS = [
-    "type", "source", "metadata", "platform", "initialState",
-    "setup", "teardown", "cases", "sources", "steps", "checkpoints"
+    "$schema", "type", "source", "metadata", "platform", "embeddedIn",
+    "initialState", "launch", "setup", "teardown", "cases",
+    "sources", "steps", "checkpoints", "descriptionFile"
 ]
 
 # Valid keys in source object
@@ -154,6 +223,14 @@ VALID_STEP_KEYS = [
     "action", "assert", "id", "ids", "value", "direction",
     "duration", "timeout", "ms", "name", "equals", "contains",
     "path", "amount", "screen", "text", "button", "label", "index",
+    # Common step attributes
+    "optional", "when",
+    # New action parameters
+    "container", "retryTapIfNoChange", "variable",
+    "times", "while", "maxRetries",
+    "latitude", "longitude", "paths",
+    # Screenshot assertion parameters
+    "cropId", "threshold",
     # File reference step keys (for flow tests)
     "file", "case", "cases",
     # Args for overriding screen test default args (for flow tests)
@@ -178,14 +255,27 @@ PARAMETER_DESCRIPTIONS = {
     "duration": "Duration in milliseconds (for longPress)",
     "timeout": "Maximum wait time in milliseconds (default: 5000)",
     "ms": "Wait duration in milliseconds",
-    "name": "Name for screenshot file",
+    "name": "Name for screenshot file / baseline",
     "equals": "Exact value to match. Supports @{varName} syntax for variable substitution",
     "contains": "Substring to match. Supports @{varName} syntax for variable substitution",
     "amount": "Scroll amount (platform-specific)",
     "screen": "Screen identifier (for flow tests)",
     "text": "Specific text portion to tap within element (for tap action)",
     "button": "Button text to tap in alert dialog (for alertTap action)",
-    "label": "Option label (visible text) to select (for selectOption action)",
-    "index": "Option index to select, 0-based (for selectOption action)",
-    "args": "Arguments for variable substitution. In screen test cases, defines default values. In flow file references, overrides defaults"
+    "label": "Human-readable step name for logs/reports. On selectOption: option label (visible text) to select",
+    "index": "Item/option/tab index, 0-based",
+    "args": "Arguments for variable substitution. In screen test cases, defines default values. In flow file references, overrides defaults",
+    "optional": "When true, a failure of this step is recorded as a warning and execution continues",
+    "when": "Pre-condition object; if not satisfied the step is skipped",
+    "container": "Scrollable container id for scrollUntilVisible (default: window / first scrollable view)",
+    "retryTapIfNoChange": "Re-tap once when the UI did not change after the tap (ghost-tap mitigation)",
+    "variable": "Runtime variable name for readText (referenced later as @{name})",
+    "times": "Iteration count for repeat (with 'while': acts as the cap)",
+    "while": "Condition object; repeat loops while it holds",
+    "maxRetries": "Number of retries after the first attempt (0-3, default 1)",
+    "latitude": "Latitude for setLocation (-90 to 90)",
+    "longitude": "Longitude for setLocation (-180 to 180)",
+    "paths": "Media file paths for addMedia (relative to test file)",
+    "cropId": "Element id whose bounding box crops the screenshot before comparing",
+    "threshold": "Required similarity percentage for screenshot assertion (0-100, default 98.0)"
 }

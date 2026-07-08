@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .models import ValidationMessage, ValidationResult
 from .step import StepValidator
+from .launch import validate_launch
 from ..schema import VALID_TOP_LEVEL_KEYS, VALID_CASE_KEYS, VALID_SOURCE_KEYS
 
 # Pattern to match @{varName} placeholders
@@ -54,6 +55,10 @@ class ScreenTestValidator:
                 message="Missing 'metadata' field",
                 level="warning"
             ))
+
+        # Validate launch configuration if present
+        if "launch" in data:
+            validate_launch(data["launch"], f"{path}.launch", result)
 
         # Validate cases
         cases = data.get("cases", [])
@@ -151,8 +156,11 @@ class ScreenTestValidator:
             step_path = f"{path}.steps[{i}]"
             self._step_validator.validate_step(step, step_path, result)
 
-        # Validate that all @{varName} placeholders have corresponding args defined
+        # Validate that all @{varName} placeholders have corresponding args defined.
+        # Runtime variables created by readText steps resolve at execution time,
+        # so they count as defined too.
         defined_args = set(case.get("args", {}).keys()) if isinstance(case.get("args"), dict) else set()
+        defined_args |= self._extract_runtime_variables(steps)
         used_args = self._extract_used_args(steps)
         undefined_args = used_args - defined_args
         if undefined_args:
@@ -168,6 +176,19 @@ class ScreenTestValidator:
         for step in steps:
             self._extract_args_from_value(step, used_args)
         return used_args
+
+    def _extract_runtime_variables(self, steps: list) -> set[str]:
+        """Extract variable names defined by readText steps (including nested repeat/retry)."""
+        variables: set[str] = set()
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            if step.get("action") == "readText" and isinstance(step.get("variable"), str):
+                variables.add(step["variable"])
+            nested = step.get("steps")
+            if isinstance(nested, list):
+                variables |= self._extract_runtime_variables(nested)
+        return variables
 
     def _extract_args_from_value(self, obj, used_args: set[str]):
         """Recursively extract @{varName} from any string value in the object."""

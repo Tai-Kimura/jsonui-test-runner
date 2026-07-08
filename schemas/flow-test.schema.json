@@ -23,9 +23,43 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "List of test case names to run (optional)"
-        }
+        },
+        "args": {
+          "type": "object",
+          "description": "Arguments overriding the screen test's default args for @{varName} substitution",
+          "additionalProperties": true
+        },
+        "when": { "$ref": "actions.schema.json#/definitions/condition" }
       },
       "required": ["file"],
+      "additionalProperties": false
+    },
+    "blockStep": {
+      "type": "object",
+      "description": "Grouped inline steps with a name (rendered as one unit in docs/reports)",
+      "properties": {
+        "block": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Block name"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this block does"
+        },
+        "descriptionFile": {
+          "type": "string",
+          "description": "Path to external description JSON file (relative to test file)"
+        },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "actions.schema.json#/definitions/step" },
+          "minItems": 1,
+          "description": "Action/assertion steps in this block (no nested blocks or file references; no screen prefix)"
+        },
+        "when": { "$ref": "actions.schema.json#/definitions/condition" }
+      },
+      "required": ["block", "steps"],
       "additionalProperties": false
     },
     "inlineStep": {
@@ -52,6 +86,7 @@
     "flowStep": {
       "oneOf": [
         { "$ref": "#/definitions/fileStep" },
+        { "$ref": "#/definitions/blockStep" },
         { "$ref": "#/definitions/inlineStep" }
       ]
     }
@@ -142,6 +177,10 @@
       ],
       "default": "all",
       "description": "Target platform(s) for this test"
+    },
+
+    "launch": {
+      "$ref": "actions.schema.json#/definitions/launch"
     },
 
     "initialState": {

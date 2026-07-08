@@ -115,6 +115,10 @@
       "additionalProperties": false
     },
 
+    "launch": {
+      "$ref": "actions.schema.json#/definitions/launch"
+    },
+
     "setup": {
       "type": "array",
       "description": "Steps to execute before each test case",
@@ -179,6 +183,11 @@
               }
             },
             "additionalProperties": false
+          },
+          "args": {
+            "type": "object",
+            "description": "Default argument values for @{varName} substitution (overridable by flow file-reference args)",
+            "additionalProperties": true
           },
           "steps": {
             "type": "array",

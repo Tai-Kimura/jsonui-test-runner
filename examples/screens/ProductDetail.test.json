@@ -1,0 +1,27 @@
+{
+  "$schema": "../../schemas/screen-test.schema.json",
+  "type": "screen",
+  "source": {
+    "layout": "Layouts/ProductDetail.json",
+    "spec": "specs/ProductDetail.md"
+  },
+  "metadata": {
+    "name": "商品詳細画面テスト",
+    "generatedAt": "2026-07-08T12:00:00Z",
+    "generatedBy": "test-agent-v1",
+    "tags": ["catalog"]
+  },
+  "platform": "all",
+  "cases": [
+    {
+      "name": "詳細表示",
+      "description": "一覧の先頭商品をタップして詳細が表示される",
+      "steps": [
+        { "action": "tapItem", "id": "product_list", "index": 0 },
+        { "action": "waitFor", "id": "product_detail_container", "timeout": 5000 },
+        { "assert": "visible", "id": "product_name_label" },
+        { "assert": "visible", "id": "product_price_label" }
+      ]
+    }
+  ]
+}

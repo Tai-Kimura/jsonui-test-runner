@@ -76,10 +76,11 @@
     },
     {
       "name": "ログイン成功",
-      "description": "正しい認証情報でログインするとホーム画面に遷移する",
+      "description": "正しい認証情報でログインするとホーム画面に遷移する。認証情報は args で差し替え可能（フロー側の file 参照 args が優先される）",
+      "args": { "email": "test@example.com", "password": "correctpassword" },
       "steps": [
-        { "action": "input", "id": "email_input", "value": "test@example.com" },
-        { "action": "input", "id": "password_input", "value": "correctpassword" },
+        { "action": "input", "id": "email_input", "value": "@{email}" },
+        { "action": "input", "id": "password_input", "value": "@{password}" },
         { "action": "tap", "id": "login_button" },
         { "action": "waitFor", "id": "home_screen", "timeout": 5000 }
       ]

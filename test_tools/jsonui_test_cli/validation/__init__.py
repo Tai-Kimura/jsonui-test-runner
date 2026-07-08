@@ -6,6 +6,7 @@ from .step import StepValidator
 from .screen import ScreenTestValidator
 from .flow import FlowTestValidator
 from .description import DescriptionValidator
+from .launch import validate_launch
 
 __all__ = [
     "ValidationMessage",
@@ -15,4 +16,5 @@ __all__ = [
     "ScreenTestValidator",
     "FlowTestValidator",
     "DescriptionValidator",
+    "validate_launch",
 ]
