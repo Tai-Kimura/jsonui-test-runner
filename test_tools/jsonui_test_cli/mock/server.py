@@ -105,6 +105,20 @@ class MockStore:
                     return ep
         return None
 
+    def definition(self, op_id: str) -> dict | None:
+        """Full definition (scenario bodies included) for the editor."""
+        ep = self.by_id(op_id)
+        if ep is None:
+            return None
+        with self._lock:
+            return {
+                "operationId": ep.operation_id,
+                "method": ep.method,
+                "path": ep.path,
+                "activeScenario": ep.active_scenario,
+                "scenarios": ep.scenarios,
+            }
+
     def activate(self, op_id: str, scenario: str) -> bool:
         with self._lock:
             ep = next((e for e in self.endpoints if e.operation_id == op_id), None)
@@ -185,10 +199,29 @@ class RunManager:
         self._lines: list[str] = []
         self._returncode: int | None = None
         self._running = False
+        self._last_target: str | None = None
 
     @property
     def targets(self) -> list[str]:
         return list(self._targets.keys())
+
+    def read_results(self) -> dict | None:
+        """Read the results JSON (results.schema.json) from the last run target."""
+        with self._lock:
+            target = self._last_target
+        if not target:
+            return None
+        spec = self._targets.get(target, {})
+        rel = spec.get("resultsPath", "jsonui-results.json")
+        cwd = (self._root / spec.get("cwd", ".")).resolve()
+        results_file = (cwd / rel).resolve()
+        if not str(results_file).startswith(str(self._root.resolve())):
+            return None
+        try:
+            with open(results_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return None
 
     def status(self) -> dict:
         with self._lock:
@@ -208,6 +241,7 @@ class RunManager:
             self._running = True
             self._lines = []
             self._returncode = None
+            self._last_target = target
         spec = self._targets[target]
         cwd = (self._root / spec.get("cwd", ".")).resolve()
         if not str(cwd).startswith(str(self._root.resolve())):
@@ -328,7 +362,11 @@ def _make_handler(server: "MockServer"):
                 return raw.decode("utf-8", "replace")
 
         def _admin_authorized(self) -> bool:
-            return self.headers.get("X-JsonUI-Token") == server.token
+            if self.headers.get("X-JsonUI-Token") == server.token:
+                return True
+            # EventSource (SSE) cannot set headers, so accept ?token= as a fallback.
+            token_q = parse_qs(urlparse(self.path).query).get("token", [None])[0]
+            return token_q == server.token
 
         # -- verbs ------------------------------------------------------
         def do_OPTIONS(self):
@@ -388,6 +426,9 @@ def _make_handler(server: "MockServer"):
                 self._send(200, server.requests.all())
             elif sub == "/run/status" and method == "GET":
                 self._send(200, {**server.run.status(), "targets": server.run.targets})
+            elif sub == "/run/results" and method == "GET":
+                results = server.run.read_results()
+                self._send(200 if results is not None else 404, results or {"error": "no results"})
             elif sub == "/run/stream" and method == "GET":
                 self._sse_run(parsed)
             elif sub == "/run" and method == "POST":
@@ -399,6 +440,10 @@ def _make_handler(server: "MockServer"):
                 body = self._read_body() or {}
                 ok = server.store.activate(op_id, body.get("scenario", ""))
                 self._send(200 if ok else 404, {"ok": ok})
+            elif re.match(r"^/mocks/[^/]+$", sub) and method == "GET":
+                op_id = sub.split("/")[2]
+                definition = server.store.definition(op_id)
+                self._send(200 if definition else 404, definition or {"error": "not found"})
             elif re.match(r"^/mocks/[^/]+$", sub) and method == "PUT":
                 op_id = sub.split("/")[2]
                 if not _SAFE_OP_ID.match(op_id):

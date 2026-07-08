@@ -248,3 +248,47 @@ class TestServer:
         status, body = self._req(server, "POST", "/__jsonui__/run", token=server.token, body={"target": "nope"})
         assert status == 409
         assert "unknown target" in body
+
+    def test_get_definition_includes_bodies(self, server):
+        status, body = self._req(server, "GET", "/__jsonui__/mocks/listStocks", token=server.token)
+        assert status == 200
+        data = json.loads(body)
+        # editor needs full scenario bodies, not just names
+        assert "items" in data["scenarios"]["default"]["body"]
+        assert data["scenarios"]["empty"]["body"]["items"] == []
+
+    def test_get_definition_unknown(self, server):
+        status, _ = self._req(server, "GET", "/__jsonui__/mocks/doesNotExist", token=server.token)
+        assert status == 404
+
+    def test_panel_served_with_token(self, server):
+        status, body = self._req(server, "GET", "/__jsonui__/panel")
+        assert status == 200
+        assert server.token in body
+
+    def test_put_rejects_path_traversal(self, server):
+        status, _ = self._req(server, "PUT", "/__jsonui__/mocks/..%2f..%2fetc",
+                              token=server.token, body={"scenario": "default", "payload": {}})
+        assert status in (400, 404)
+
+
+class TestRunManager:
+    def test_read_results_from_target(self, tmp_path):
+        from jsonui_test_cli.mock.server import RunManager
+        (tmp_path / "jsonui-results.json").write_text(json.dumps(
+            {"format": "jsonui-test-results", "version": 1, "suites": []}))
+        rm = RunManager({"web": {"command": "true", "cwd": ".", "resultsPath": "jsonui-results.json"}}, tmp_path)
+        rm._last_target = "web"  # simulate a completed run
+        results = rm.read_results()
+        assert results is not None and results["format"] == "jsonui-test-results"
+
+    def test_read_results_none_without_run(self, tmp_path):
+        from jsonui_test_cli.mock.server import RunManager
+        rm = RunManager({"web": {"command": "true"}}, tmp_path)
+        assert rm.read_results() is None
+
+    def test_read_results_blocks_escape(self, tmp_path):
+        from jsonui_test_cli.mock.server import RunManager
+        rm = RunManager({"web": {"command": "true", "cwd": ".", "resultsPath": "../../etc/passwd"}}, tmp_path)
+        rm._last_target = "web"
+        assert rm.read_results() is None
