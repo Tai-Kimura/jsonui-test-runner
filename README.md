@@ -15,8 +15,16 @@ JSONで定義されたテストケースを、iOS・Android・Webで統一的に
 
 ## インストール
 
+`jsonui-test` CLI は [jsonui-cli](https://github.com/Tai-Kimura/jsonui-cli) へ移設されました
+（`test_tools/` に self-contained で同梱）。このリポジトリはテストスキーマ（`schemas/`）・
+ドライバ（`drivers/`）・examples の正本です。
+
 ```bash
-# TODO: 実装後に追記
+# jsonui-test CLI 単体
+curl -fsSL https://raw.githubusercontent.com/Tai-Kimura/jsonui-cli/main/test_tools/installer/bootstrap.sh | bash
+
+# もしくは jsonui-cli 一式（jui / jsonui-doc も入る）
+curl -fsSL https://raw.githubusercontent.com/Tai-Kimura/jsonui-cli/main/installer/bootstrap.sh | bash
 ```
 
 ## 使い方
