@@ -10,6 +10,7 @@ from .step import StepValidator
 from .screen import ScreenTestValidator
 from .flow import FlowTestValidator
 from .description import DescriptionValidator
+from .mock import MockValidator
 
 
 class TestValidator:
@@ -21,6 +22,7 @@ class TestValidator:
         self._screen_validator = ScreenTestValidator(self._step_validator)
         self._flow_validator = FlowTestValidator(self._step_validator)
         self._description_validator = DescriptionValidator()
+        self._mock_validator = MockValidator()
 
     def validate_file(self, file_path: Path) -> ValidationResult:
         """Validate a single test or description file."""
@@ -50,7 +52,9 @@ class TestValidator:
 
         # Determine file type by extension or content
         file_name = file_path.name
-        if file_name.endswith('.test.json'):
+        if file_name.endswith('.mock.json'):
+            self._mock_validator.validate(data, str(file_path), result)
+        elif file_name.endswith('.test.json'):
             self._validate_test(data, str(file_path), result)
         elif 'case_name' in data or (file_path.parent.name == 'descriptions'):
             # Description file (has case_name or is in descriptions folder)

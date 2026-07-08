@@ -31,6 +31,8 @@ def cmd_validate(args):
         if p.is_dir():
             # Collect test files
             files_to_validate.extend(p.rglob("*.test.json"))
+            # Collect mock definition files
+            files_to_validate.extend(p.rglob("*.mock.json"))
             # Collect description files in descriptions folders
             for desc_dir in p.rglob("descriptions"):
                 if desc_dir.is_dir():
@@ -244,6 +246,83 @@ def cmd_report(args):
     return 0
 
 
+def _load_mock_config(explicit_path=None):
+    """Read the 'mock' section from jui.config.json (or an explicit config path)."""
+    candidates = [Path(explicit_path)] if explicit_path else [
+        Path("jui.config.json"), Path("jsonui-test.config.json")]
+    for c in candidates:
+        if c.exists():
+            try:
+                with open(c, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return data.get("mock", data), c
+            except (OSError, json.JSONDecodeError):
+                pass
+    return {}, None
+
+
+def cmd_mock_generate(args):
+    """Scaffold or diff mock definition files from OpenAPI specs."""
+    from .mock.generate import generate, GenerateReport, CheckReport
+
+    config, _ = _load_mock_config(getattr(args, "config", None))
+    swaggers = list(args.swagger) if args.swagger else config.get("swagger", [])
+    mock_dir = args.out or config.get("mockDir", "tests/mocks")
+    if not swaggers:
+        print("Error: no swagger specified (use --swagger or set mock.swagger in jui.config.json)", file=sys.stderr)
+        return 1
+
+    report = generate(swaggers, mock_dir, check=args.check)
+
+    if isinstance(report, CheckReport):
+        for rel in report.missing:
+            print(f"  [MISSING] {rel} (in swagger, no mock file)")
+        for rel in report.orphaned:
+            print(f"  [ORPHAN]  {rel} (mock file, not in swagger)")
+        for msg in report.drifted:
+            print(f"  [DRIFT]   {msg}")
+        if report.has_drift:
+            print(f"\nDrift detected: {len(report.missing)} missing, "
+                  f"{len(report.orphaned)} orphaned, {len(report.drifted)} drifted")
+            return 1
+        print("No drift: mocks are in sync with swagger.")
+        return 0
+
+    for w in report.warnings:
+        print(f"  [WARN] {w}")
+    print(f"\nGenerated {len(report.created)} mock file(s), "
+          f"skipped {len(report.skipped)} existing, into {mock_dir}/")
+    return 0
+
+
+def cmd_mock_serve(args):
+    """Start the local mock server + control panel."""
+    from .mock.server import MockStore, MockServer, RunManager
+
+    config, config_path = _load_mock_config(getattr(args, "config", None))
+    mock_dir = args.mock_dir or config.get("mockDir", "tests/mocks")
+    port = args.port or config.get("server", {}).get("port", 8790)
+    run_targets = config.get("runTargets", {})
+    project_root = config_path.parent if config_path else Path(".")
+
+    if not Path(mock_dir).exists():
+        print(f"Error: mock dir not found: {mock_dir} (run 'jsonui-test mock generate' first)", file=sys.stderr)
+        return 1
+
+    store = MockStore.load(mock_dir)
+    server = MockServer(store, RunManager(run_targets, project_root), port=port)
+    print(f"JsonUI mock server: http://127.0.0.1:{port}")
+    print(f"  loaded {len(store.endpoints)} endpoint(s) from {mock_dir}/")
+    print(f"  control panel: http://127.0.0.1:{port}/__jsonui__/panel")
+    print(f"  admin token:   {server.token}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nshutting down")
+        server.shutdown()
+    return 0
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -400,6 +479,25 @@ def main():
         help="Output file path (default: report.xml / report.html)"
     )
 
+    # Mock command (nested: mock generate | mock serve)
+    mock_parser = subparsers.add_parser(
+        "mock",
+        aliases=["m"],
+        help="Generate and serve API mocks from OpenAPI"
+    )
+    mock_subparsers = mock_parser.add_subparsers(dest="mock_action", help="Mock action")
+
+    mock_gen_parser = mock_subparsers.add_parser("generate", help="Scaffold mock files from swagger")
+    mock_gen_parser.add_argument("--swagger", action="append", help="Path to an OpenAPI file (repeatable)")
+    mock_gen_parser.add_argument("--out", help="Output mock dir (default: mock.mockDir or tests/mocks)")
+    mock_gen_parser.add_argument("--config", help="Config file (default: jui.config.json)")
+    mock_gen_parser.add_argument("--check", action="store_true", help="Report drift vs swagger, do not write")
+
+    mock_serve_parser = mock_subparsers.add_parser("serve", help="Run the mock server + panel")
+    mock_serve_parser.add_argument("--port", type=int, help="Port (default: mock.server.port or 8790)")
+    mock_serve_parser.add_argument("--mock-dir", help="Mock dir (default: mock.mockDir or tests/mocks)")
+    mock_serve_parser.add_argument("--config", help="Config file (default: jui.config.json)")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -410,6 +508,13 @@ def main():
         return cmd_validate(args)
     elif args.command in ["report", "r"]:
         return cmd_report(args)
+    elif args.command in ["mock", "m"]:
+        if getattr(args, "mock_action", None) == "generate":
+            return cmd_mock_generate(args)
+        elif getattr(args, "mock_action", None) == "serve":
+            return cmd_mock_serve(args)
+        mock_parser.print_help()
+        return 0
     elif args.command in ["generate", "g"]:
         # Check for subcommand
         if hasattr(args, 'generate_type') and args.generate_type:

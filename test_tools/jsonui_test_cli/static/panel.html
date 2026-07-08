@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>JsonUI Mock Server</title>
+<!--
+  Minimal control panel (Phase 1). Phase 2 replaces this with the full
+  Endpoints / Run / Requests UI. The admin token is injected server-side.
+-->
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 2rem; color: #222; }
+  h1 { font-size: 1.2rem; }
+  code { background: #f3f3f3; padding: .1rem .3rem; border-radius: 3px; }
+  table { border-collapse: collapse; margin-top: 1rem; }
+  th, td { border: 1px solid #ddd; padding: .3rem .6rem; text-align: left; }
+</style>
+<h1>JsonUI Mock Server</h1>
+<p>Admin token: <code id="tok">__JSONUI_TOKEN__</code></p>
+<div id="mocks">loading…</div>
+<script>
+  const TOKEN = document.getElementById('tok').textContent;
+  fetch('/__jsonui__/mocks', { headers: { 'X-JsonUI-Token': TOKEN } })
+    .then(r => r.json())
+    .then(rows => {
+      const t = ['<table><tr><th>method</th><th>path</th><th>active</th><th>scenarios</th></tr>'];
+      for (const m of rows) {
+        t.push(`<tr><td>${m.method}</td><td>${m.path}</td><td>${m.activeScenario}</td><td>${m.scenarios.join(', ')}</td></tr>`);
+      }
+      t.push('</table>');
+      document.getElementById('mocks').innerHTML = rows.length ? t.join('') : 'no mocks loaded';
+    })
+    .catch(e => document.getElementById('mocks').textContent = 'error: ' + e);
+</script>
