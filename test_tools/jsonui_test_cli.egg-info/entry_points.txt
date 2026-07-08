@@ -1,2 +1,0 @@
-[console_scripts]
-jsonui-test = jsonui_test_cli.cli:main
