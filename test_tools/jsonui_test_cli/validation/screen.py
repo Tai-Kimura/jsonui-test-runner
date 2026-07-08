@@ -8,6 +8,7 @@ from pathlib import Path
 from .models import ValidationMessage, ValidationResult
 from .step import StepValidator
 from .launch import validate_launch
+from .mock import find_mock_index, validate_mock_reference
 from ..schema import VALID_TOP_LEVEL_KEYS, VALID_CASE_KEYS, VALID_SOURCE_KEYS
 
 # Pattern to match @{varName} placeholders
@@ -59,6 +60,11 @@ class ScreenTestValidator:
         # Validate launch configuration if present
         if "launch" in data:
             validate_launch(data["launch"], f"{path}.launch", result)
+
+        # Validate root-level mock scenario set (screen tests select scenarios per file)
+        if "mocks" in data:
+            index = find_mock_index(self._test_file_path)
+            validate_mock_reference(data["mocks"], f"{path}.mocks", result, index)
 
         # Validate cases
         cases = data.get("cases", [])

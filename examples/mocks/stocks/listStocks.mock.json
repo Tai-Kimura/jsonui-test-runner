@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../schemas/mock.schema.json",
+  "source": {
+    "swagger": "docs/api/example_swagger.json",
+    "operationId": "listStocks",
+    "method": "GET",
+    "path": "/v1/stocks"
+  },
+  "activeScenario": "default",
+  "scenarios": {
+    "default": {
+      "status": 200,
+      "body": { "items": [{ "id": "s1", "name": "Yamazaki 12", "qty": 3 }] }
+    },
+    "empty": {
+      "status": 200,
+      "body": { "items": [] }
+    },
+    "error_500": {
+      "status": 500,
+      "body": { "detail": "internal error" }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "type": "screen",
+  "source": { "layout": "Layouts/StockList.json" },
+  "metadata": {
+    "name": "Stock list — empty state",
+    "description": "Verifies the empty-state view when the stock list API returns no items."
+  },
+  "launch": { "arguments": { "apiBase": "http://localhost:8790" } },
+  "mocks": { "listStocks": "empty" },
+  "cases": [
+    {
+      "name": "shows empty state",
+      "description": "With the listStocks 'empty' scenario active, the empty view is visible.",
+      "steps": [
+        { "assert": "visible", "id": "empty_state_view" },
+        { "assert": "notVisible", "id": "stock_row" }
+      ]
+    }
+  ]
+}

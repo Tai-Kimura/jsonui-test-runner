@@ -125,6 +125,12 @@ SUPPORTED_ACTIONS = {
         "description": "Insert media files into the device gallery (Android only)",
         "required": ["paths"],
         "optional": []
+    },
+    "setMocks": {
+        "description": "Switch API mock scenarios (map of operationId -> scenario name). "
+                       "In flow tests, call before navigating so the next screen fetches the new response.",
+        "required": ["mocks"],
+        "optional": []
     }
 }
 
@@ -201,7 +207,7 @@ VALID_PERMISSION_VALUES = ["allow", "deny", "unset"]
 # Valid top-level keys in test file
 VALID_TOP_LEVEL_KEYS = [
     "$schema", "type", "source", "metadata", "platform", "embeddedIn",
-    "initialState", "launch", "setup", "teardown", "cases",
+    "initialState", "launch", "mocks", "setup", "teardown", "cases",
     "sources", "steps", "checkpoints", "descriptionFile"
 ]
 
@@ -229,6 +235,8 @@ VALID_STEP_KEYS = [
     "container", "retryTapIfNoChange", "variable",
     "times", "while", "maxRetries",
     "latitude", "longitude", "paths",
+    # setMocks: switch mock scenarios mid-flow (map of operationId -> scenario)
+    "mocks",
     # Screenshot assertion parameters
     "cropId", "threshold",
     # File reference step keys (for flow tests)

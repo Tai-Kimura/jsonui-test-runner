@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 from .models import ValidationMessage, ValidationResult
+from .mock import find_mock_index, validate_mock_reference
 from ..schema import (
     CONDITION_PLATFORMS,
     CONDITION_PLATFORM_ARRAY_ITEMS,
@@ -553,6 +554,9 @@ class StepValidator:
             self._validate_set_location_action(step, path, result)
         elif action == "addMedia":
             self._validate_add_media_action(step, path, result)
+        elif action == "setMocks":
+            index = find_mock_index(self._test_file_path)
+            validate_mock_reference(step.get("mocks"), f"{path}.mocks", result, index)
 
     def _validate_repeat_action(self, step: dict, path: str, result: ValidationResult):
         """Validate a repeat control step."""

@@ -4,18 +4,15 @@
   "title": "JsonUI Screen Test",
   "description": "Schema for single-screen UI test cases (1:1 mapping with layout JSON)",
   "type": "object",
-
   "properties": {
     "$schema": {
       "type": "string",
       "description": "Reference to this schema"
     },
-
     "type": {
       "const": "screen",
       "description": "Test type identifier"
     },
-
     "source": {
       "type": "object",
       "description": "Source files this test is based on",
@@ -29,10 +26,11 @@
           "description": "Path to the specification document file (e.g., 'docs/screens/login.html' or 'docs/screens/login.md'). Used for linking from Mermaid flow diagrams."
         }
       },
-      "required": ["layout"],
+      "required": [
+        "layout"
+      ],
       "additionalProperties": false
     },
-
     "metadata": {
       "type": "object",
       "description": "Test metadata",
@@ -56,7 +54,9 @@
         },
         "tags": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Tags for filtering tests (e.g., ['smoke', 'regression'])"
         },
         "entry_screen": {
@@ -66,27 +66,44 @@
         },
         "group": {
           "oneOf": [
-            { "type": "string" },
-            { "type": "array", "items": { "type": "string" } }
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           ],
           "description": "Group name(s) for Mermaid diagram. Can be a string or array. When array, the screen appears in multiple group tabs."
         }
       },
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "additionalProperties": false
     },
-
     "platform": {
       "oneOf": [
         {
           "type": "string",
-          "enum": ["ios", "android", "web", "all"]
+          "enum": [
+            "ios",
+            "android",
+            "web",
+            "all"
+          ]
         },
         {
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["ios", "android", "web"]
+            "enum": [
+              "ios",
+              "android",
+              "web"
+            ]
           },
           "minItems": 1,
           "uniqueItems": true
@@ -95,13 +112,11 @@
       "default": "all",
       "description": "Target platform(s) for this test"
     },
-
     "embeddedIn": {
       "type": "string",
       "pattern": "^[A-Z][A-Za-z0-9]*#[a-z][a-zA-Z0-9]*$",
       "description": "Run this screen test inside a parent screen's `Embed` region. Format: 'ParentScreen#regionId' where ParentScreen is the parent screen name (PascalCase) and regionId is the Embed node's `id` attribute in the parent layout (camelCase). When set, the test runner mounts the parent screen first and asserts the screen-under-test renders into the matching Embed slot. Navigation assertions target the parent's NavController/Router (v1 supports `delegate` mode only). See jsonui-cli/docs/plans/2026-05-11-embed-feature.md §11.1."
     },
-
     "initialState": {
       "type": "object",
       "description": "Initial ViewModel state before test execution",
@@ -114,23 +129,26 @@
       },
       "additionalProperties": false
     },
-
     "launch": {
       "$ref": "actions.schema.json#/definitions/launch"
     },
-
+    "mocks": {
+      "$ref": "actions.schema.json#/definitions/mocksScenarioMap"
+    },
     "setup": {
       "type": "array",
       "description": "Steps to execute before each test case",
-      "items": { "$ref": "actions.schema.json#/definitions/step" }
+      "items": {
+        "$ref": "actions.schema.json#/definitions/step"
+      }
     },
-
     "teardown": {
       "type": "array",
       "description": "Steps to execute after each test case",
-      "items": { "$ref": "actions.schema.json#/definitions/step" }
+      "items": {
+        "$ref": "actions.schema.json#/definitions/step"
+      }
     },
-
     "cases": {
       "type": "array",
       "description": "Test cases for this screen",
@@ -159,13 +177,22 @@
             "oneOf": [
               {
                 "type": "string",
-                "enum": ["ios", "android", "web", "all"]
+                "enum": [
+                  "ios",
+                  "android",
+                  "web",
+                  "all"
+                ]
               },
               {
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "enum": ["ios", "android", "web"]
+                  "enum": [
+                    "ios",
+                    "android",
+                    "web"
+                  ]
                 },
                 "minItems": 1,
                 "uniqueItems": true
@@ -192,17 +219,26 @@
           "steps": {
             "type": "array",
             "minItems": 1,
-            "items": { "$ref": "actions.schema.json#/definitions/step" },
+            "items": {
+              "$ref": "actions.schema.json#/definitions/step"
+            },
             "description": "Test steps (actions and assertions)"
           }
         },
-        "required": ["name", "steps"],
+        "required": [
+          "name",
+          "steps"
+        ],
         "additionalProperties": false
       },
       "minItems": 1
     }
   },
-
-  "required": ["type", "source", "metadata", "cases"],
+  "required": [
+    "type",
+    "source",
+    "metadata",
+    "cases"
+  ],
   "additionalProperties": false
 }

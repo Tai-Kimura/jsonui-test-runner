@@ -188,6 +188,70 @@ class TestValidation:
         assert not result.is_valid
 
 
+class TestMockReferences:
+    """Root `mocks` (screen tests) and `setMocks` steps are checked against tests/mocks."""
+
+    def _project(self, tmp_path):
+        from jsonui_test_cli.validation.mock import _MOCK_INDEX_CACHE
+        _MOCK_INDEX_CACHE.clear()
+        mdir = tmp_path / "tests" / "mocks" / "stocks"
+        mdir.mkdir(parents=True)
+        (mdir / "listStocks.mock.json").write_text(json.dumps({
+            "source": {"method": "GET", "path": "/v1/stocks", "operationId": "listStocks"},
+            "activeScenario": "default",
+            "scenarios": {"default": {"status": 200}, "empty": {"status": 200}},
+        }))
+        sdir = tmp_path / "tests" / "screens"
+        sdir.mkdir(parents=True)
+        return sdir
+
+    def test_valid_root_mocks_passes(self, tmp_path):
+        sdir = self._project(tmp_path)
+        f = sdir / "ok.test.json"
+        f.write_text(json.dumps({
+            "type": "screen", "source": {"layout": "L.json"}, "metadata": {},
+            "mocks": {"listStocks": "empty"},
+            "cases": [{"name": "c", "description": "d", "steps": [{"assert": "visible", "id": "x"}]}],
+        }))
+        assert _Validator().validate_file(f).is_valid
+
+    def test_unknown_scenario_errors(self, tmp_path):
+        sdir = self._project(tmp_path)
+        f = sdir / "bad.test.json"
+        f.write_text(json.dumps({
+            "type": "screen", "source": {"layout": "L.json"}, "metadata": {},
+            "mocks": {"listStocks": "nope"},
+            "cases": [{"name": "c", "description": "d", "steps": [{"assert": "visible", "id": "x"}]}],
+        }))
+        result = _Validator().validate_file(f)
+        assert not result.is_valid
+        assert any("no scenario 'nope'" in e.message for e in result.errors)
+
+    def test_setmocks_unknown_op_errors(self, tmp_path):
+        sdir = self._project(tmp_path)
+        f = sdir / "flow.test.json"
+        f.write_text(json.dumps({
+            "type": "screen", "source": {"layout": "L.json"}, "metadata": {},
+            "cases": [{"name": "c", "description": "d", "steps": [
+                {"action": "setMocks", "mocks": {"ghostOp": "default"}}]}],
+        }))
+        result = _Validator().validate_file(f)
+        assert not result.is_valid
+        assert any("unknown mock operationId 'ghostOp'" in e.message for e in result.errors)
+
+    def test_no_mockdir_skips_existence(self, tmp_path):
+        from jsonui_test_cli.validation.mock import _MOCK_INDEX_CACHE
+        _MOCK_INDEX_CACHE.clear()
+        # test file with no discoverable tests/mocks dir: shape ok -> valid
+        f = tmp_path / "lonely.test.json"
+        f.write_text(json.dumps({
+            "type": "screen", "source": {"layout": "L.json"}, "metadata": {},
+            "mocks": {"anyOp": "anyScenario"},
+            "cases": [{"name": "c", "description": "d", "steps": [{"assert": "visible", "id": "x"}]}],
+        }))
+        assert _Validator().validate_file(f).is_valid
+
+
 class TestServer:
     @pytest.fixture
     def server(self, tmp_path):
