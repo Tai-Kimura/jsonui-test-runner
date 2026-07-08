@@ -35,6 +35,8 @@ public struct ScreenTest: Codable {
     public let platform: PlatformTarget?
     public let initialState: InitialState?
     public let launch: LaunchConfig?
+    /// API mock scenario set applied (and the app relaunched) before the cases run
+    public let mocks: [String: String]?
     public let setup: [TestStep]?
     public let teardown: [TestStep]?
     public let cases: [TestCase]
@@ -159,6 +161,8 @@ public struct FlowTestStep: Codable {
     public let paths: [String]?
     public let cropId: String?
     public let threshold: Double?
+    /// Scenario map for the setMocks action (operationId -> scenario)
+    public let mocks: [String: String]?
 
     // For file reference steps
     public let file: String?
@@ -233,6 +237,8 @@ public struct TestStep: Codable {
     public let paths: [String]?
     public let cropId: String?
     public let threshold: Double?
+    /// Scenario map for the setMocks action (operationId -> scenario)
+    public let mocks: [String: String]?
 
     public init(
         action: String? = nil,
@@ -266,7 +272,8 @@ public struct TestStep: Codable {
         longitude: Double? = nil,
         paths: [String]? = nil,
         cropId: String? = nil,
-        threshold: Double? = nil
+        threshold: Double? = nil,
+        mocks: [String: String]? = nil
     ) {
         self.action = action
         self.assert = assert
@@ -300,6 +307,7 @@ public struct TestStep: Codable {
         self.paths = paths
         self.cropId = cropId
         self.threshold = threshold
+        self.mocks = mocks
     }
 
     public var isAction: Bool {

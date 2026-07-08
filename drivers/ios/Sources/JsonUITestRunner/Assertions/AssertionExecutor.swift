@@ -499,7 +499,8 @@ extension FlowTestStep {
             longitude: longitude,
             paths: paths,
             cropId: cropId,
-            threshold: threshold
+            threshold: threshold,
+            mocks: mocks
         )
     }
 }

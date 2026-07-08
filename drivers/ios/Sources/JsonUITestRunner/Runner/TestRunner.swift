@@ -12,6 +12,10 @@ public struct TestRunnerConfig {
     public var updateBaselines: Bool = false
     /// When set, results are written to this path as standardized results JSON
     public var resultsPath: URL? = nil
+    /// Mock server base URL (e.g. http://localhost:8790). Required to use `mocks` / `setMocks`.
+    public var mockServerURL: URL? = nil
+    /// Admin token printed by `jsonui-test mock serve`. Required with mockServerURL.
+    public var mockToken: String? = nil
 
     public init() {}
 }
@@ -74,6 +78,7 @@ public class JsonUITestRunner {
     private let config: TestRunnerConfig
     private var app: XCUIApplication
     private var testLoader: TestLoader?
+    private let mockClient: MockClient?
     /// Runtime variables (readText results), shared with the action executor
     private let variables = VariableStore()
 
@@ -91,6 +96,19 @@ public class JsonUITestRunner {
             baselineDir: config.baselineDir,
             updateBaselines: config.updateBaselines
         )
+        if let url = config.mockServerURL, let token = config.mockToken {
+            self.mockClient = MockClient(baseURL: url, token: token)
+        } else {
+            self.mockClient = nil
+        }
+    }
+
+    /// Return the configured mock client or throw a clear setup error.
+    private func requireMockClient(_ feature: String) throws -> MockClient {
+        guard let client = mockClient else {
+            throw MockClientError.notConfigured(feature: feature)
+        }
+        return client
     }
 
     // MARK: - Launch Configuration
@@ -135,9 +153,27 @@ public class JsonUITestRunner {
         let startTime = Date()
         var caseResults: [TestCaseResult] = []
 
-        // Apply launch configuration (relaunches the app) before running cases
+        // Apply the file-level mock scenario set BEFORE the app (re)launches, so the
+        // screen fetches under the selected scenarios. Scenario switching is per-file
+        // for screen tests; there is no per-case re-open (see plan §8.1).
+        if let mocks = screenTest.mocks {
+            do {
+                try requireMockClient("mocks").scenarioSet(mocks)
+            } catch {
+                let failed = screenTest.cases.map {
+                    TestCaseResult(name: $0.name, passed: false, duration: 0, error: error)
+                }
+                return TestRunResult(testName: screenTest.metadata.name, caseResults: failed, totalDuration: Date().timeIntervalSince(startTime))
+            }
+        }
+
+        // Apply launch configuration (relaunches the app) before running cases.
+        // If mocks were set but there is no launch block, still relaunch so the
+        // screen re-fetches under the new scenarios.
         if let launch = screenTest.launch {
             applyLaunch(launch)
+        } else if screenTest.mocks != nil {
+            app.launch()
         }
 
         // Run setup once. If it throws, every case is recorded as failed but
@@ -191,6 +227,11 @@ public class JsonUITestRunner {
             } catch {
                 caseResults.append(TestCaseResult(name: "teardown", passed: false, duration: 0, error: error))
             }
+        }
+
+        // Reset mock scenarios so state does not leak into the next test file.
+        if screenTest.mocks != nil {
+            try? mockClient?.reset()
         }
 
         let totalDuration = Date().timeIntervalSince(startTime)
@@ -255,6 +296,10 @@ public class JsonUITestRunner {
         }
 
         let caseResults = runFlowSteps(flowTest)
+
+        // Reset mock scenarios so a flow's setMocks state does not leak to the next test.
+        try? mockClient?.reset()
+
         let totalDuration = Date().timeIntervalSince(startTime)
 
         let result = TestRunResult(
@@ -379,6 +424,11 @@ public class JsonUITestRunner {
         }
         if step.action == "retry" {
             try executeRetry(step, warnings: &warnings)
+            return
+        }
+        if step.action == "setMocks" {
+            // Switch scenarios mid-flow; the next navigation re-fetches under them.
+            try requireMockClient("setMocks").scenarioSet(step.mocks ?? [:])
             return
         }
 
@@ -569,7 +619,8 @@ public class JsonUITestRunner {
             longitude: step.longitude,
             paths: step.paths,
             cropId: substituteArgsInOptionalString(step.cropId, args: args),
-            threshold: step.threshold
+            threshold: step.threshold,
+            mocks: step.mocks
         )
     }
 
