@@ -3,7 +3,7 @@
   "type": "screen",
   "source": {
     "layout": "Layouts/Checkout.json",
-    "spec": "specs/Checkout.md"
+    "document": "specs/Checkout.md"
   },
   "metadata": {
     "name": "チェックアウト画面テスト",

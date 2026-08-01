@@ -117,7 +117,7 @@ jsonui-test-runner/
 | `repeat` | ステップ群を繰り返す | `times?`, `while?`, `steps` |
 | `retry` | 失敗時にブロックを再実行（最大3回） | `maxRetries?`, `steps` |
 | `setLocation` | モック位置情報を設定 | `latitude`, `longitude` |
-| `addMedia` | メディアをギャラリーに追加（Androidのみ） | `paths` |
+| `addMedia` | メディアを端末に追加（Android: ギャラリー / iOS: フォトライブラリ〈シミュレータのみ〉 / Web: file input） | `paths` |
 
 ### アサーション
 
@@ -183,9 +183,9 @@ jsonui-test report results-web.json --format html -o report.html
 
 ## 対応JsonUIライブラリ
 
-- [SwiftJsonUI](https://github.com/anthropics/SwiftJsonUI) - iOS
-- [KotlinJsonUI](https://github.com/anthropics/KotlinJsonUI) - Android
-- [ReactJsonUI](https://github.com/anthropics/ReactJsonUI) - Web
+- [SwiftJsonUI](https://github.com/Tai-Kimura/SwiftJsonUI) - iOS
+- [KotlinJsonUI](https://github.com/Tai-Kimura/KotlinJsonUI) - Android
+- [ReactJsonUI](https://github.com/Tai-Kimura/ReactJsonUI) - Web
 
 ## ライセンス
 

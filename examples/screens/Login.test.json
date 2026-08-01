@@ -3,7 +3,7 @@
   "type": "screen",
   "source": {
     "layout": "Layouts/Login.json",
-    "spec": "specs/Login.md"
+    "document": "specs/Login.md"
   },
   "metadata": {
     "name": "ログイン画面テスト",

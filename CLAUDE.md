@@ -100,7 +100,7 @@ tests/
   "type": "screen",
   "source": {
     "layout": "Layouts/Login.json",
-    "spec": "specs/Login.md"
+    "document": "specs/Login.md"
   },
   "metadata": {
     "name": "ログイン画面テスト",
@@ -184,7 +184,7 @@ tests/
 | `repeat` | ステップ群の繰り返し | `steps` + `times`か`while` | - |
 | `retry` | 失敗時ブロック再実行 | `steps` | `maxRetries` (0-3, default: 1) |
 | `setLocation` | モック位置情報 | `latitude`, `longitude` | - |
-| `addMedia` | ギャラリーにメディア追加 (Androidのみ) | `paths` | - |
+| `addMedia` | メディアを端末に追加 (Android: MediaStore / iOS: PhotoKit〈シミュレータのみ〉 / Web: file input) | `paths` | - |
 
 ### アサーション一覧
 
