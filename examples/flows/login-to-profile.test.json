@@ -2,9 +2,9 @@
   "$schema": "../../schemas/flow-test.schema.json",
   "type": "flow",
   "sources": [
-    { "layout": "Layouts/Login.json", "spec": "specs/Login.md", "alias": "Login" },
-    { "layout": "Layouts/Home.json", "spec": "specs/Home.md", "alias": "Home" },
-    { "layout": "Layouts/Profile.json", "spec": "specs/Profile.md", "alias": "Profile" }
+    { "layout": "Layouts/Login.json", "document": "specs/Login.md", "alias": "Login" },
+    { "layout": "Layouts/Home.json", "document": "specs/Home.md", "alias": "Home" },
+    { "layout": "Layouts/Profile.json", "document": "specs/Profile.md", "alias": "Profile" }
   ],
   "metadata": {
     "name": "ログイン〜プロフィール編集フロー",

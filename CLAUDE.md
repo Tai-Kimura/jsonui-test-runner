@@ -144,8 +144,8 @@ tests/
   "$schema": "../schemas/flow-test.schema.json",
   "type": "flow",
   "sources": [
-    { "layout": "Layouts/Login.json", "spec": "specs/Login.md" },
-    { "layout": "Layouts/Home.json", "spec": "specs/Home.md" }
+    { "layout": "Layouts/Login.json", "document": "specs/Login.md" },
+    { "layout": "Layouts/Home.json", "document": "specs/Home.md" }
   ],
   "metadata": {
     "name": "ログイン〜ホーム遷移フロー"
