@@ -161,45 +161,70 @@ tests/
 
 ### アクション一覧
 
-| アクション | 説明 | 必須パラメータ | オプション |
-|-----------|------|---------------|-----------|
-| `tap` | 要素をタップ | `id` | `text`, `retryTapIfNoChange` |
-| `doubleTap` | ダブルタップ | `id` | - |
-| `longPress` | 長押し | `id` | `duration` (ms) |
-| `input` | テキスト入力 | `id`, `value` | - |
-| `clear` | 入力クリア | `id` | - |
-| `scroll` | スクロール | `id`, `direction` | `amount` |
-| `scrollUntilVisible` | 要素が見えるまでスクロール | `id` | `container`, `direction` (default: down), `timeout` (default: 20000) |
-| `swipe` | スワイプ | `id`, `direction` | - |
-| `waitFor` | 要素出現待機 | `id` | `timeout` (ms, default: 5000) |
-| `waitForAny` | いずれかの要素出現待機 | `ids` | `timeout` |
-| `wait` | 固定時間待機 | `ms` | - |
+`?` 付きパラメータはオプション、`=` は既定値。表は `schemas/actions.schema.json`（SSoT）の `x-doc` から `npm run docs` で生成される — 手編集禁止。
+
+<!-- generated:actions -->
+| アクション | 説明 | パラメータ | プラットフォーム |
+|---|---|---|---|
+| `tap` | 要素をタップ | `id`, `text?`, `retryTapIfNoChange?=false` | `retryTapIfNoChange`（ゴーストタップ緩和）は Web では受理のみ・no-op |
+| `doubleTap` | 要素をダブルタップ | `id` | - |
+| `longPress` | 要素を長押し | `id`, `duration?=500` | - |
+| `input` | 指定要素にテキスト入力 | `id`, `value` | - |
+| `typeText` | フォーカス中の欄へキーボード入力（要素 id 不要。不可視のコード入力欄など向け） | `value`, `timeout?` | - |
+| `clear` | 入力内容をクリア | `id` | - |
+| `scroll` | 指定方向へスクロール | `id`, `direction`, `amount?` | - |
+| `scrollUntilVisible` | 要素が見えるまでスクロール（終端到達で即失敗） | `id`, `container?`, `direction?=down`, `timeout?=20000` | - |
+| `swipe` | 要素をスワイプ | `id`, `direction` | - |
+| `waitFor` | 要素の出現を待機 | `id`, `timeout?=5000` | - |
+| `waitForAny` | いずれかの要素の出現を待機 | `ids`, `timeout?=5000` | - |
+| `wait` | 指定時間待機 | `ms` | - |
 | `back` | 戻る操作 | - | - |
-| `screenshot` | スクショ保存 | `name` | - |
-| `alertTap` | アラートのボタンタップ | `button` | `timeout` |
-| `selectOption` | ドロップダウン/ピッカー選択 | `id` | `value`, `label`, `index` |
-| `tapItem` | コレクション内アイテムタップ | `id`, `index` | `timeout` |
-| `selectTab` | タブ選択 | `id`, `index` | `timeout` |
-| `readText` | テキストを実行時変数に読む | `id`, `variable` | `timeout` |
-| `repeat` | ステップ群の繰り返し | `steps` + `times`か`while` | - |
-| `retry` | 失敗時ブロック再実行 | `steps` | `maxRetries` (0-3, default: 1) |
-| `setLocation` | モック位置情報 | `latitude`, `longitude` | - |
-| `addMedia` | メディアを端末に追加 (Android: MediaStore / iOS: PhotoKit〈シミュレータのみ〉 / Web: file input) | `paths` | - |
+| `hideKeyboard` | ソフトキーボードを閉じる（未表示なら no-op） | - | - |
+| `screenshot` | スクリーンショットを保存 | `name` | - |
+| `alertTap` | アラート／ダイアログのボタンをタップ | `button`, `timeout?=5000` | - |
+| `selectOption` | ドロップダウン／ピッカーから選択 | `id`, `value?`, `index?`, `timeout?=5000` | - |
+| `tapItem` | コレクション内のアイテムをタップ | `id`, `index`, `timeout?=5000` | - |
+| `selectTab` | タブを選択 | `id`, `index`, `timeout?=5000` | - |
+| `readText` | 要素のテキストを実行時変数に読む（`@{変数名}` で後続参照） | `id`, `variable`, `timeout?=5000` | - |
+| `repeat` | ステップ群を繰り返す（`times`／`while` 併用可、安全上限 100 回） | `times?`, `while?`, `steps` | - |
+| `retry` | 失敗時にブロック全体を再実行 | `maxRetries?=1`, `steps` | - |
+| `setLocation` | モック位置情報を設定 | `latitude`, `longitude` | iOS: SDK 依存 ／ Android: best effort ／ Web: setGeolocation |
+| `addMedia` | メディアフィクスチャを端末に追加（png/jpg/jpeg/gif/mp4。蓄積するため件数でなく存在を検証） | `paths`, `id?`, `timeout?` | Android: ギャラリー（MediaStore）／ iOS: PhotoKit〈シミュレータ限定・photos-add 許可は CLI が自動付与〉／ Web: file input |
+| `setMocks` | エンドポイント（operationId）ごとのモックシナリオを切り替え | `mocks` | - |
+| `setViewport` | ビューポートをリサイズ（レスポンシブ検証） | `width`, `height` | Web のみ。iOS/Android は警告付き no-op（`when.responsive` でゲート） |
+| `setOrientation` | 画面の向きを変更 | `orientation` | iOS: XCUIDevice ／ Android: UiDevice ／ Web: モバイルエミュレーション時のみ（他は警告付き no-op） |
+| `emitHook` | アプリが登録したテストフックを呼び出す（`window.__jsonuiTestHooks`） | `name`, `hookArgs?` | Web のみ。iOS/Android は警告付き no-op（`when.platform` でゲート） |
+<!-- /generated:actions -->
 
 ### アサーション一覧
 
 全アサーションはauto-wait（100msポーリング、成立で即成功、デフォルト5000ms / `timeout`で上書き）。
 
-| アサーション | 説明 | 必須パラメータ | オプション |
-|-------------|------|---------------|-----------|
-| `visible` | 表示確認 | `id` | `timeout` |
-| `notVisible` | 非表示確認 | `id` | `timeout` |
-| `enabled` | 有効確認 | `id` | `timeout` |
-| `disabled` | 無効確認 | `id` | `timeout` |
-| `text` | テキスト検証 | `id` | `equals`, `contains`, `timeout` |
-| `count` | 要素数検証 | `id`, `equals` | `timeout` |
-| `state` | VM状態検証 | `path`, `equals` | `timeout` |
-| `screenshot` | ベースライン画像比較 | `name` | `cropId`, `threshold` (default: 98.0) |
+<!-- generated:assertions -->
+| アサーション | 説明 | パラメータ | プラットフォーム |
+|---|---|---|---|
+| `visible` | 要素が表示されている | `id`, `timeout?` | - |
+| `notVisible` | 要素が非表示または不存在 | `id`, `timeout?` | - |
+| `enabled` | 要素が有効 | `id`, `timeout?` | - |
+| `disabled` | 要素が無効 | `id`, `timeout?` | - |
+| `text` | テキストを検証（`equals`／`contains`） | `id`, `equals?`, `contains?`, `timeout?` | - |
+| `count` | 要素数を検証（`equals: 0` は不存在で成立） | `id`, `equals`, `timeout?` | - |
+| `state` | ViewModel 状態を検証（`path` はドット記法、StateProvider 必須） | `path`, `equals`, `timeout?` | - |
+| `screenshot` | ベースライン画像とのビジュアル比較（ベースライン無しは新規作成＋警告） | `name`, `cropId?`, `threshold?=98` | - |
+| `openedUrl` | 直近の `window.open` 呼び出しの URL を検証 | `equals?`, `contains?`, `timeout?` | Web のみ（`when.platform: web` でゲート） |
+| `screen` | 指定画面の表示を検証（排他は主張しない — 埋め込み／タブ等で複数同時あり得る） | `name`, `timeout?` | - |
+<!-- /generated:assertions -->
+
+### 表の再生成（スキーマ変更時必須）
+
+`schemas/actions.schema.json` にステップを追加・変更したら:
+
+1. 当該定義に `x-doc` を書く（`ja` = 表の説明。`platforms` = プラットフォーム注記、差異がある場合のみ）
+2. `npm run docs` — README.md / CLAUDE.md のマーカー間を再生成（`x-doc` 欠落はエラーで停止）
+3. コミット前に `npm run docs:check` — 表が stale なら exit 1
+
+`node scripts/gen-action-tables.mjs --json` で機械可読ダンプ（スキル等の下流ツール向け）。
+パラメータ表記は required 素／optional `?`／スキーマ `default` は `=値` で自動描画される。
 
 ### 共通ステップ属性 / launch / 実行時変数 / レポート
 

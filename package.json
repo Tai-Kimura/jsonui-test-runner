@@ -1,0 +1,9 @@
+{
+  "name": "jsonui-test-runner",
+  "private": true,
+  "description": "Canonical schemas + drivers for JsonUI cross-platform UI testing. `npm run docs` regenerates the action/assertion tables from schemas/actions.schema.json.",
+  "scripts": {
+    "docs": "node scripts/gen-action-tables.mjs",
+    "docs:check": "node scripts/gen-action-tables.mjs --check"
+  }
+}
