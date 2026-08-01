@@ -90,6 +90,15 @@ jsonui-test-runner/
     └── flows/                  # フローテスト
 ```
 
+ドライバ 3 種（`drivers/{ios,android,web}`）は各リポジトリのリリースタグを指す **git submodule** です:
+
+```bash
+git clone --recursive https://github.com/Tai-Kimura/jsonui-test-runner.git
+
+# submodule なしで clone 済みの場合
+git submodule update --init --recursive
+```
+
 ## テストJSON仕様
 
 ### アクション
