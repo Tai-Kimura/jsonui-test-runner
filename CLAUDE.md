@@ -207,7 +207,7 @@ tests/
 - テストルートの `launch`: `clearState` / `permissions` / `arguments`（起動前適用）
 - `readText`で読んだ値は `@{変数名}` で実行時参照（ロード時args置換→実行時変数の順で解決）
 - 結果JSON（`schemas/results.schema.json`）→ `jsonui-test report --format junit|html` で変換
-- セマンティクスのSSoT: `docs/specs/2026-07-08-advanced-test-features.md`（ドライバー実装は必ずここに従う）
+- セマンティクスのSSoT: `specs/2026-07-08-advanced-test-features.md`（ドライバー実装は必ずここに従う）
 
 ## 要素の特定方法
 
