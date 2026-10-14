@@ -147,6 +147,7 @@ git submodule update --init --recursive
 |---|---|---|---|
 | `visible` | 要素がビューポート内に見えている（画面とすべてのスクロール容器の内側に縦横 1pt/px 以上。中心でなく一部で可。レイアウト上存在するだけでは不可） | `id`, `timeout?` | - |
 | `notVisible` | `visible` の否定（不存在、非表示、またはビューポートの外） | `id`, `timeout?` | - |
+| `hidden` | 要素が描画されていない（不存在、gone、または自身か祖先が invisible / hidden）。位置に依らない: 画面外・スクロール外・モーダルの下・重なりの下・opacity 0・enabled:false は描画されている扱い | `id`, `timeout?` | - |
 | `enabled` | 要素が有効 | `id`, `timeout?` | - |
 | `disabled` | 要素が無効 | `id`, `timeout?` | - |
 | `text` | テキストを検証（`equals`／`contains`） | `id`, `equals?`, `contains?`, `timeout?` | - |
@@ -165,7 +166,7 @@ git submodule update --init --recursive
 |------|------|
 | `label` | ログ・レポートに表示するステップ名（※`selectOption`では従来通り選択肢ラベルの意味） |
 | `optional` | `true`なら失敗を警告に降格して続行 |
-| `when` | 事前条件。不成立ならステップをスキップ。`visible` / `notVisible` / `platform` / `state` をAND評価 |
+| `when` | 事前条件。不成立ならステップをスキップ。`visible` / `notVisible` / `hidden` / `platform` / `state` をAND評価 |
 
 ```json
 { "action": "tap", "id": "tutorial_close", "when": { "visible": "tutorial_overlay" }, "optional": true }

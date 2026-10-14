@@ -99,6 +99,10 @@
           "$ref": "#/definitions/elementId",
           "description": "Instant check: the negation of visible — absent, hidden, or outside the viewport"
         },
+        "hidden": {
+          "$ref": "#/definitions/elementId",
+          "description": "Instant check: the element is not drawn, wherever it is — absent, gone, or invisible / hidden on itself or an ancestor. Off screen, under a modal, under another view, at opacity 0 or disabled is drawn (not hidden)"
+        },
         "platform": {
           "oneOf": [
             {
@@ -1236,6 +1240,9 @@
           "$ref": "#/definitions/notVisibleAssertion"
         },
         {
+          "$ref": "#/definitions/hiddenAssertion"
+        },
+        {
           "$ref": "#/definitions/enabledAssertion"
         },
         {
@@ -1308,6 +1315,40 @@
       "properties": {
         "assert": {
           "const": "notVisible"
+        },
+        "id": {
+          "$ref": "#/definitions/elementId"
+        },
+        "timeout": {
+          "$ref": "#/definitions/assertionTimeout"
+        },
+        "label": {
+          "$ref": "#/definitions/label"
+        },
+        "optional": {
+          "$ref": "#/definitions/optional"
+        },
+        "when": {
+          "$ref": "#/definitions/condition"
+        },
+        "screen": {
+          "$ref": "#/definitions/stepScreen"
+        }
+      },
+      "required": [
+        "assert",
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "hiddenAssertion": {
+      "type": "object",
+      "x-doc": {
+        "ja": "要素が描画されていない（不存在、gone、または自身か祖先が invisible / hidden）。位置に依らない: 画面外・スクロール外・モーダルの下・重なりの下・opacity 0・enabled:false は描画されている扱い"
+      },
+      "properties": {
+        "assert": {
+          "const": "hidden"
         },
         "id": {
           "$ref": "#/definitions/elementId"
