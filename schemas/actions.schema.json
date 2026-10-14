@@ -557,7 +557,7 @@
         },
         "container": {
           "$ref": "#/definitions/elementId",
-          "description": "Scrollable container to scroll (default: window / first scrollable view)"
+          "description": "Scrollable container to scroll. Omitted, each platform picks its own surface: web the target's nearest scrolling ancestor (else the window), iOS the first scroll view, Android a swipe across the middle of the app window. Name it for a scroll area smaller than the screen."
         },
         "direction": {
           "$ref": "#/definitions/direction",
