@@ -203,8 +203,8 @@ tests/
 <!-- generated:assertions -->
 | アサーション | 説明 | パラメータ | プラットフォーム |
 |---|---|---|---|
-| `visible` | 要素が表示されている | `id`, `timeout?` | - |
-| `notVisible` | 要素が非表示または不存在 | `id`, `timeout?` | - |
+| `visible` | 要素がビューポート内に見えている（画面とすべてのスクロール容器の内側に縦横 1pt/px 以上。中心でなく一部で可。レイアウト上存在するだけでは不可） | `id`, `timeout?` | - |
+| `notVisible` | `visible` の否定（不存在、非表示、またはビューポートの外） | `id`, `timeout?` | - |
 | `enabled` | 要素が有効 | `id`, `timeout?` | - |
 | `disabled` | 要素が無効 | `id`, `timeout?` | - |
 | `text` | テキストを検証（`equals`／`contains`） | `id`, `equals?`, `contains?`, `timeout?` | - |
