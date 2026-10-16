@@ -7,7 +7,7 @@
   },
   "metadata": {
     "name": "チェックアウト画面テスト",
-    "description": "新機能 (launch / scrollUntilVisible / readText / repeat / retry / when / optional / screenshot) のリファレンス例",
+    "description": "新機能 (launch / initialState / scrollUntilVisible / readText / repeat / retry / when / optional / screenshot) のリファレンス例。initialState はクーポン入力済み・ギフト包装ありの状態から始める（キーは Layouts/Checkout.json の data 名、値は data の class に合う型）",
     "generatedAt": "2026-07-08T12:00:00Z",
     "generatedBy": "test-agent-v1",
     "tags": ["checkout", "reference"]
@@ -20,8 +20,8 @@
   },
   "initialState": {
     "viewModel": {
-      "cartItems": [],
-      "isSubmitting": false
+      "couponCode": "WELCOME10",
+      "giftWrap": true
     }
   },
   "cases": [
@@ -30,6 +30,8 @@
       "description": "初期表示をベースライン画像と比較する（初回実行時はベースラインを作成して警告付きで成功）",
       "steps": [
         { "assert": "visible", "id": "checkout_root" },
+        { "assert": "text", "id": "coupon_code_input", "equals": "WELCOME10" },
+        { "assert": "state", "path": "giftWrap", "equals": true },
         { "assert": "screenshot", "name": "checkout_initial", "cropId": "summary_card", "threshold": 98.0 }
       ]
     },
@@ -61,7 +63,7 @@
           ]
         },
         { "assert": "count", "id": "cart_item_row", "equals": 3 },
-        { "assert": "state", "path": "cartItems.length", "equals": 3, "when": { "platform": "web" } }
+        { "assert": "state", "path": "cartCount", "equals": 3 }
       ]
     },
     {

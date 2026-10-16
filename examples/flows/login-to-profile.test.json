@@ -8,32 +8,25 @@
   ],
   "metadata": {
     "name": "ログイン〜プロフィール編集フロー",
-    "description": "ユーザーがログインしてプロフィールを編集・保存する一連の流れをテスト",
+    "description": "ユーザーがログインしてプロフィールを編集・保存する一連の流れをテスト。initialState.viewModels のキーは screen id（layout の basename、steps の screen と同じ値）で、各画面はフローが最初に到達したときに 1 回だけ値を受け取る",
     "generatedAt": "2026-01-12T11:00:00Z",
     "generatedBy": "test-agent-v1",
     "tags": ["e2e", "user-flow", "smoke"]
   },
   "platform": "all",
   "initialState": {
-    "screen": "Login",
     "viewModels": {
       "Login": {
-        "email": "",
-        "password": "",
-        "isLoading": false
+        "email": "test@example.com"
       },
       "Home": {
-        "userName": ""
-      },
-      "Profile": {
-        "displayName": "",
-        "isSaving": false
+        "showOnboarding": false
       }
     }
   },
   "steps": [
     { "screen": "Login", "assert": "visible", "id": "email_input" },
-    { "screen": "Login", "action": "input", "id": "email_input", "value": "test@example.com" },
+    { "screen": "Login", "assert": "text", "id": "email_input", "equals": "test@example.com" },
     { "screen": "Login", "action": "input", "id": "password_input", "value": "password123" },
     { "screen": "Login", "action": "tap", "id": "login_button" },
 

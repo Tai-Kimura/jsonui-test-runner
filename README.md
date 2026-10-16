@@ -184,7 +184,26 @@ git submodule update --init --recursive
 }
 ```
 
-プラットフォーム別の適用方法（iOS: `launchEnvironment`、Android: `pm clear`/`pm grant`、Web: `grantPermissions`/`sessionStorage`）はドライバーごとの実装に従います。
+3 platform とも runner が適用します（web もハーネスが呼ぶ helper はありません）。プラットフォーム別の適用方法:
+
+- iOS: `launchEnvironment`（`JSONUI_TEST_CLEAR_STATE` / `JSONUI_TEST_ARGS` / `JSONUI_TEST_PERMISSIONS` / `JSONUI_TEST_INITIAL_STATE` は runner が持ち、起動のたびに消してから設定し直す）
+- Android: `clearState` はプロセス内でのアプリデータ消去（`pm clear` ではない）、`allow` は `pm grant`、`deny` は付与されていないことの検査、`arguments` は起動 intent の extra
+- Web: `clearState` は cookies と origin の local / session storage（IndexedDB は対象外）、権限は `deny` か `unset` があれば一度クリアしてから `allow` を付け直す、`arguments` は `sessionStorage`。その後 1 回だけ reload
+
+順序と同じ起動で運ぶもの（initialState・mocks）は `specs/2026-07-08-advanced-test-features.md` §10.2 を参照。
+
+### 初期状態（initialState）
+
+`initialState.viewModel` に書いた値は、起動後にテスト対象画面（`source.layout` の screen id）が最初に表示されたとき 1 回だけ、その画面の data に入ります。キーは layout の `data` セクションの名前（トップレベルのみ）、値は data の `class` に合う JSON 型です。
+
+```json
+"initialState": { "viewModel": { "email": "test@example.com" } }
+```
+
+- アプリが受領を返さない、または拒否したキーがあると、そのファイルの case は `setup` で失敗します（SwiftJsonUI ≥ 10.30.0 / KotlinJsonUI ≥ 2.44.0 と同じ列車の jsonui-cli で生成したアプリが必要）。
+- case ごとの `initialState` は `caseIsolation: "reopen"` のときだけ書けます（ファイルの値に key 単位で上書き。例: `examples/screens/OrderStatus.test.json`）。
+- フローは `initialState.viewModels` に screen id（steps の `screen` と同じ値）をキーにして書きます。`initialState.screen` はありません。フローが参照したファイル／case の initialState はフロー内では適用されません。
+- `state` アサーション／`when.state` はハーネスの provider 無しで、アプリの state ブリッジから読みます。
 
 ### 実行時変数
 

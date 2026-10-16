@@ -13,14 +13,6 @@
     "tags": ["auth", "smoke"]
   },
   "platform": "all",
-  "initialState": {
-    "viewModel": {
-      "email": "",
-      "password": "",
-      "isLoading": false,
-      "errorMessage": null
-    }
-  },
   "cases": [
     {
       "name": "初期表示確認",

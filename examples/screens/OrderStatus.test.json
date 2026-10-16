@@ -1,0 +1,67 @@
+{
+  "$schema": "../../schemas/screen-test.schema.json",
+  "type": "screen",
+  "source": {
+    "layout": "Layouts/OrderStatus.json",
+    "document": "specs/OrderStatus.md"
+  },
+  "metadata": {
+    "name": "注文状況画面テスト",
+    "description": "case ごとの initialState のリファレンス例。caseIsolation \"reopen\" で case ごとにアプリを起動し直し、ファイルの initialState に case の initialState を key 単位で上書きした値（浅いマージ、null も値として上書き）を、その起動で画面の data に入れる。\"shared\"（既定）では画面を最初の case の前に 1 回しか開かないので、case の initialState は validate エラーになる",
+    "generatedAt": "2026-10-16T12:00:00Z",
+    "generatedBy": "test-agent-v1",
+    "tags": ["order", "reference"]
+  },
+  "platform": "all",
+  "caseIsolation": "reopen",
+  "initialState": {
+    "viewModel": {
+      "orderNumber": "A-1001",
+      "status": "processing",
+      "trackingNumber": null
+    }
+  },
+  "cases": [
+    {
+      "name": "処理中",
+      "description": "case の initialState が無い case はファイルの値だけで起動する",
+      "steps": [
+        { "assert": "text", "id": "order_number_label", "equals": "A-1001" },
+        { "assert": "text", "id": "status_label", "contains": "処理中" },
+        { "assert": "hidden", "id": "tracking_link" },
+        { "assert": "state", "path": "status", "equals": "processing" }
+      ]
+    },
+    {
+      "name": "発送済み",
+      "description": "status と trackingNumber だけを上書きする。orderNumber はファイルの値のまま",
+      "initialState": {
+        "viewModel": {
+          "status": "shipped",
+          "trackingNumber": "1234-5678-9012"
+        }
+      },
+      "steps": [
+        { "assert": "text", "id": "order_number_label", "equals": "A-1001" },
+        { "assert": "text", "id": "status_label", "contains": "発送済み" },
+        { "assert": "visible", "id": "tracking_link" },
+        { "assert": "state", "path": "trackingNumber", "equals": "1234-5678-9012" }
+      ]
+    },
+    {
+      "name": "キャンセル済み",
+      "description": "キャンセル理由つきの状態から始める。前の case で入れた値は残らない（case ごとに起動し直すため）",
+      "initialState": {
+        "viewModel": {
+          "status": "cancelled",
+          "cancelReason": "在庫切れ"
+        }
+      },
+      "steps": [
+        { "assert": "text", "id": "status_label", "contains": "キャンセル" },
+        { "assert": "text", "id": "cancel_reason_label", "equals": "在庫切れ" },
+        { "assert": "hidden", "id": "tracking_link" }
+      ]
+    }
+  ]
+}

@@ -109,16 +109,14 @@ tests/
   },
   "initialState": {
     "viewModel": {
-      "email": "",
-      "password": "",
-      "isLoading": false
+      "email": "test@example.com"
     }
   },
   "cases": [
     {
       "name": "初期表示確認",
       "steps": [
-        { "assert": "visible", "id": "email_input" },
+        { "assert": "text", "id": "email_input", "equals": "test@example.com" },
         { "assert": "visible", "id": "password_input" },
         { "assert": "disabled", "id": "login_button" }
       ]
@@ -126,7 +124,6 @@ tests/
     {
       "name": "ログイン成功",
       "steps": [
-        { "action": "input", "id": "email_input", "value": "test@example.com" },
         { "action": "input", "id": "password_input", "value": "password123" },
         { "action": "tap", "id": "login_button" },
         { "assert": "state", "path": "isLoading", "equals": true },
@@ -136,6 +133,8 @@ tests/
   ]
 }
 ```
+
+`initialState.viewModel` はテスト対象画面（`source.layout` の screen id）の data に、起動後その画面が最初に出たときに 1 回だけ入る。キーは layout の `data` セクションの名前（トップレベルのみ・ドット記法なし）、値は data の `class` に合う JSON 型。アプリが受領を返さない／拒否したキーがあると、そのファイルの case は `setup` で失敗する（SwiftJsonUI ≥ 10.30.0 / KotlinJsonUI ≥ 2.44.0 と同じ列車の jsonui-cli で生成したアプリが要る）。case にも `initialState` を書けるが `caseIsolation: "reopen"` が必要（ファイルの値に key 単位で上書き。例: `examples/screens/OrderStatus.test.json`）。`state` アサーションはハーネスの provider 無しで、アプリの state ブリッジから読む。詳細は spec §10。
 
 ### フローテスト形式
 
@@ -150,6 +149,11 @@ tests/
   "metadata": {
     "name": "ログイン〜ホーム遷移フロー"
   },
+  "initialState": {
+    "viewModels": {
+      "Home": { "showOnboarding": false }
+    }
+  },
   "steps": [
     { "screen": "Login", "action": "input", "id": "email_input", "value": "test@example.com" },
     { "screen": "Login", "action": "input", "id": "password_input", "value": "pass123" },
@@ -158,6 +162,8 @@ tests/
   ]
 }
 ```
+
+フローの `initialState.viewModels` のキーは screen id（layout の basename。steps の `screen` と同じ値）。各画面はフローが最初に到達したときに受け取り、driver はそこで受領を確かめる（到達しなかった画面は warning）。フローの開始画面を指定する `initialState.screen` は無い。フローが `file` で参照したファイル／case の initialState はフロー内では適用されない（warning）。
 
 ### アクション一覧
 
@@ -230,7 +236,7 @@ tests/
 ### 共通ステップ属性 / launch / 実行時変数 / レポート
 
 - 全ステップ共通: `label`（表示名。`selectOption`のみ従来の選択肢ラベルの意味）、`optional`（失敗を警告に降格）、`when`（事前条件: `visible`/`notVisible`/`platform`/`state`のAND。不成立でスキップ）
-- テストルートの `launch`: `clearState` / `permissions` / `arguments`（起動前適用）
+- テストルートの `launch`: `clearState` / `permissions` / `arguments`（起動前に runner が適用。web も runner が適用する — ハーネスが呼ぶ helper は無い。順序と同じ起動で運ぶもの（initialState・mocks）は spec §10.2）
 - `readText`で読んだ値は `@{変数名}` で実行時参照（ロード時args置換→実行時変数の順で解決）
 - 結果JSON（`schemas/results.schema.json`）→ `jsonui-test report --format junit|html` で変換
 - セマンティクスのSSoT: `specs/2026-07-08-advanced-test-features.md`（ドライバー実装は必ずここに従う）
