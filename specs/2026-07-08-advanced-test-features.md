@@ -519,8 +519,11 @@ For each screen showing, while the gate is open:
   - Any `rejected` entry → the same failure, listing each key and reason.
 - **Flows**: each screen in `viewModels` is checked the first time the flow
   reaches it — when a step's `screen` changes and the implicit screen check
-  passes. Same judgement. A screen in `viewModels` the flow never reaches is
-  a warning.
+  passes. Same judgement. With `verifyScreenTransitions` off there is no
+  implicit screen check, and the receipt is still checked the first time a
+  step's `screen` changes to that screen. A screen leaves the pending set only
+  once its receipt passed, so a retried flow body checks it again. A screen in
+  `viewModels` the flow never reaches is a warning.
 - **Default state provider**: when the harness passes none, `state` resolves
   its `path` in the bridge `data` of the screen §6 names. The path rule and
   the bridge outcomes are `state-path.json`:
