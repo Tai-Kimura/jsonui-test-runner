@@ -231,10 +231,13 @@ order, and what else the same launch carries, is §10.2):
   (IndexedDB is not touched); permissions: when any value is `deny` or
   `unset`, `context.clearPermissions()` first, then the `allow`s are granted
   again (clearing only for `unset` left an earlier file's `allow` in place);
-  `arguments` → `sessionStorage["JSONUI_TEST_ARGS"]` (JSON). The page is then
-  reloaded once (`goto` on a reopen). At the end of the file the runner
-  removes `JSONUI_TEST_ARGS` and `JSONUI_TEST_INITIAL_STATE` from
-  sessionStorage.
+  `arguments` → `sessionStorage["JSONUI_TEST_ARGS"]` (JSON). Then the runner
+  calls the harness's `afterLaunch(page)` hook (runner config; awaited) — the
+  place to seed what `clearState` removed, such as an auth cookie — and only
+  then writes the initialState, switches the mocks and reloads the page once
+  (`goto` on a reopen). A throw from `afterLaunch` fails the launch like any
+  other launch step. At the end of the file the runner removes
+  `JSONUI_TEST_ARGS` and `JSONUI_TEST_INITIAL_STATE` from sessionStorage.
 
 The app-side reading of `JSONUI_TEST_ARGS` / `JSONUI_TEST_CLEAR_STATE` is a
 convention for JsonUI apps and is not provided by the libraries; the drivers
@@ -364,7 +367,8 @@ The same order on every platform:
 2. **permissions** — iOS env `JSONUI_TEST_PERMISSIONS`; Android grant, deny
    asserted; web clear-then-grant (§5).
 3. **arguments** — key `JSONUI_TEST_ARGS`: iOS env, Android intent extra,
-   web sessionStorage.
+   web sessionStorage. Web then calls the harness hook `afterLaunch(page)`
+   when one is configured (§5), on every launch — per case on a reopen.
 4. **initialState** — key `JSONUI_TEST_INITIAL_STATE`, carried the same way
    as the arguments.
 5. **mocks** — `scenarioSet`.
@@ -403,6 +407,16 @@ The payload (`JSONUI_TEST_INITIAL_STATE`, a JSON string):
 ```
 
 - `launchId`: a UUID the driver makes for each launch.
+- `writtenAt` (web only): the page's `Date.now()` when the runner wrote the
+  payload (ms since the epoch, the browser's clock). The app consumes the
+  payload only in a document whose `performance.timeOrigin` is later than
+  `writtenAt` — the document the launch's reload / `goto` opens. A document
+  that already existed when the payload was written (one still hydrating
+  from before the launch) leaves it untouched: it does not apply it, does not
+  remove its screen from the stored payload, and shows no receipt (its bridge
+  carries `launchId: null`). Without this, such a document took the payload
+  first and the reloaded one had nothing to apply. A payload without
+  `writtenAt` is not consumed on web.
 - `screens`: in a screen test, the screen under test only, with the file's
   `initialState.viewModel` (merged with the case's on a reopen); in a flow,
   `initialState.viewModels` as written. Keys of `viewModels` are screen ids,
@@ -419,7 +433,8 @@ The payload (`JSONUI_TEST_INITIAL_STATE`, a JSON string):
 
 - **Reading**: iOS — `ProcessInfo.processInfo.environment`, once. Android —
   the intent extra of the Activity the screen is in; never kept in process
-  memory across launches. Web — sessionStorage.
+  memory across launches. Web — sessionStorage, in a document opened after
+  the payload's `writtenAt` (§10.2).
 - **Gate**: the same as the screen marker. iOS — DEBUG, or the Info.plist key
   `com.swiftjsonui.SCREEN_MARKER`; Android — `FLAG_DEBUGGABLE`, or the
   meta-data `com.kotlinjsonui.SCREEN_MARKER`; web — `NODE_ENV !==
