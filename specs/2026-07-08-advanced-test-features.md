@@ -36,9 +36,11 @@ steps) accepts these optional attributes:
 - `visible` / `notVisible`: **instant** check of current UI (no polling, no
   implicit wait). Element existing but off-screen/hidden counts as not visible.
 - `platform`: same matching rules as the existing `platform` field.
-- `state`: requires a state provider (see §6). If no provider is configured,
-  evaluating a `state` condition is an **error** (fails the step / loop), not a
-  silent skip.
+- `state`: reads the screen's Data through the default provider (the state
+  bridge, §6) or a provider the harness passes. Instant like the others: a
+  bridge that is absent, or a path that does not resolve, is not met; a
+  truncated bridge (iOS, over 32 KB) is an **error** (fails the step / loop),
+  not a silent skip.
 
 ## 2. Assertion auto-wait (fluent assertions)
 
