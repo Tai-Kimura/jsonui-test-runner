@@ -207,37 +207,52 @@ Permission names (cross-platform set): `camera`, `microphone`, `location`,
 `notifications`, `photos`, `contacts`, `calendar`, `bluetooth`. Values:
 `allow` / `deny` / `unset`.
 
-Application per platform (applied **before** the app under test starts):
+Application per platform (applied **before** the app under test starts; the
+order, and what else the same launch carries, is §10.2):
 
-- **iOS**: the driver sets `launchEnvironment["JSONUI_TEST_ARGS"]` to the
-  JSON-encoded `arguments` map and `launchEnvironment["JSONUI_TEST_CLEAR_STATE"] = "1"`
-  when `clearState` is true (the JsonUI app framework honors these — app-side
-  contract). Permissions: `unset` uses `resetAuthorizationStatus(for:)`;
-  `allow`/`deny` installs a UI interruption monitor that answers system
-  permission alerts accordingly for the run.
-- **Android**: `clearState` → `pm clear <pkg>` via `UiAutomation` shell before
-  launch; permissions → `pm grant` / `pm revoke` (runtime permissions);
-  `arguments` → intent extras (`JSONUI_TEST_ARGS` as JSON string extra) on the
-  launch intent.
-- **Web**: exposed as a `applyLaunchConfig(context, launch)` helper —
-  `clearState` clears cookies + local/session storage for the origin;
-  `permissions` maps to `context.grantPermissions()` (deny = omit, unset =
-  `clearPermissions()`); `arguments` are written to
-  `sessionStorage["JSONUI_TEST_ARGS"]` (JSON) before navigation.
+- **iOS**: the runner owns four `launchEnvironment` keys —
+  `JSONUI_TEST_CLEAR_STATE`, `JSONUI_TEST_ARGS`, `JSONUI_TEST_PERMISSIONS` and
+  `JSONUI_TEST_INITIAL_STATE` — and removes all four before every launch, then
+  sets the ones this launch needs. A key set for one file therefore never
+  reaches the next file's launch. `JSONUI_TEST_CLEAR_STATE = "1"` when
+  `clearState` is true; `JSONUI_TEST_ARGS` is the JSON-encoded `arguments`
+  map; `JSONUI_TEST_PERMISSIONS` the JSON-encoded `permissions` map.
+- **Android**: `clearState` → an in-process wipe of the app's persisted state
+  (files, shared_prefs, databases, cache, code_cache). Not `pm clear`: the
+  instrumentation runs in the app's process, and `pm clear` kills it.
+  Permissions → `pm grant` for `allow`; `deny` is asserted (a granted
+  permission declared `deny` fails the file — an in-run revoke kills the
+  process); `unset` leaves the inherited state. `arguments` → the
+  `JSONUI_TEST_ARGS` string extra (JSON) on the relaunch intent.
+- **Web**: the runner applies it — there is no helper for the harness to call.
+  `clearState` clears cookies and the origin's local and session storage
+  (IndexedDB is not touched); permissions: when any value is `deny` or
+  `unset`, `context.clearPermissions()` first, then the `allow`s are granted
+  again (clearing only for `unset` left an earlier file's `allow` in place);
+  `arguments` → `sessionStorage["JSONUI_TEST_ARGS"]` (JSON). The page is then
+  reloaded once (`goto` on a reopen). At the end of the file the runner
+  removes `JSONUI_TEST_ARGS` and `JSONUI_TEST_INITIAL_STATE` from
+  sessionStorage.
 
-The app-side contract (`JSONUI_TEST_ARGS` / `JSONUI_TEST_CLEAR_STATE`) is a
-convention for JsonUI apps; library support is tracked separately.
+The app-side reading of `JSONUI_TEST_ARGS` / `JSONUI_TEST_CLEAR_STATE` is a
+convention for JsonUI apps and is not provided by the libraries; the drivers
+deliver them and stop there. `JSONUI_TEST_INITIAL_STATE` is different: the
+libraries read it (§10).
 
-## 6. `state` parity (StateProvider on all platforms)
+## 6. `state` (the bridge is the default provider)
 
-- iOS already has `ViewModelStateProvider` (protocol, `getValue(at:)`).
-- Android: add the equivalent `ViewModelStateProvider` interface
-  (`fun getValue(path: String): Any?`), injectable into the runner; the
-  `state` assertion and `state` conditions use it.
-- Web: add a `StateProvider` interface. Default implementation reads
-  `window.__JSONUI_STATE__` (object; `path` is dot-notation into it) via
-  `page.evaluate`. Custom providers injectable through runner config.
-- `state` assertion participates in auto-wait polling (§2).
+- `state` (assertion) and `when.state` read the ViewModel data of a screen.
+  With JsonUI libraries that have the state bridge (SwiftJsonUI ≥ 10.30.0,
+  KotlinJsonUI ≥ 2.44.0, generated with the jsonui-cli of the same train) the
+  harness passes nothing: the driver's default provider resolves `path` in the
+  bridge's `data` (§10.4, §10.5).
+- Which screen: in a screen test, the screen under test; in a flow, the
+  step's `screen`, else the last `screen` an earlier step named; a case a flow
+  references reads its own file's screen.
+- A provider the harness passes still wins (iOS `ViewModelStateProvider`,
+  Android `ViewModelStateProvider`, web `stateProvider` in the runner config).
+- `state` takes part in auto-wait (§2): an absent bridge or an unresolved path
+  is "not yet" and is polled; a truncated bridge fails at once.
 
 ## 7. Teardown guarantee
 
@@ -307,11 +322,244 @@ derived: skipped → `"skipped"`, else passed/failed.
 | `repeat` / `retry` | ✅ | ✅ | ✅ |
 | `retryTapIfNoChange` | ✅ | ✅ | accepted, no-op |
 | `screenshot` assertion | ✅ | ✅ | ✅ |
-| `state` assertion / condition | ✅ (existing) | ✅ (new) | ✅ (new, `__JSONUI_STATE__`) |
-| launch: clearState | env contract | `pm clear` | storage clear |
-| launch: permissions | reset + interruption monitor | `pm grant/revoke` | `grantPermissions` |
-| launch: arguments | launchEnvironment | intent extras | sessionStorage |
+| `state` assertion / condition | ✅ bridge leaf `__state_<id>` (≥1.15.0) | ✅ marker semantics `JsonUIState` (≥1.17.0) | ✅ `__JSONUI_STATE__[id]` (≥1.15.0) |
+| `initialState` (file / case / flow) | ✅ env, receipt checked (≥1.15.0) | ✅ intent extra, receipt checked (≥1.17.0) | ✅ sessionStorage, receipt checked (≥1.15.0) |
+| launch: clearState | env contract | in-process wipe | runner: cookies + storage (≥1.15.0) |
+| launch: permissions | env `JSONUI_TEST_PERMISSIONS` | `pm grant`, deny asserted | runner: clear on deny/unset, then grant (≥1.15.0) |
+| launch: arguments | launchEnvironment (owned keys reset per launch, ≥1.15.0) | intent extras | runner: sessionStorage (≥1.15.0) |
 | `setLocation` | SDK-dependent | best effort | ✅ |
 | `addMedia` | ✅ simulator only (≥1.7.0) | ✅ | ✅ file input |
 | results JSON | ✅ | ✅ | ✅ |
 | JUnit/HTML report | via CLI | via CLI | via CLI |
+
+## 10. initialState, the state bridge and the launch sequence
+
+Contract for every repository that takes part: the three drivers, the two
+libraries (SwiftJsonUI, KotlinJsonUI), the three generators (sjui / kjui /
+rjui) and `jsonui-test validate`. The shared vectors in `specs/vectors/`
+(§10.7) fix the parts that are data; an implementation passes them as
+written.
+
+Versions that implement it: drivers ios 1.15.0, android 1.17.0, web 1.15.0;
+SwiftJsonUI 10.30.0; KotlinJsonUI 2.44.0; the jsonui-cli released with them.
+There is no transition period: a driver of this version fails a file whose
+initialState the app did not confirm (§10.5).
+
+### 10.1 Screen id
+
+As `jsonui-cli/shared/core/screen_identity.json`: the layout file's basename
+without `.json`, verbatim, with a size-class variant (`@compact` / `@medium`
+/ `@regular`) removed. The screen under test is the screen id of
+`source.layout` (required by the schema) — the child screen, also when
+`embeddedIn` is set.
+
+### 10.2 The launch sequence and delivery
+
+The same order on every platform:
+
+1. **clearState** — iOS env `JSONUI_TEST_CLEAR_STATE=1`; Android in-process
+   wipe; web cookies + the origin's local / session storage.
+2. **permissions** — iOS env `JSONUI_TEST_PERMISSIONS`; Android grant, deny
+   asserted; web clear-then-grant (§5).
+3. **arguments** — key `JSONUI_TEST_ARGS`: iOS env, Android intent extra,
+   web sessionStorage.
+4. **initialState** — key `JSONUI_TEST_INITIAL_STATE`, carried the same way
+   as the arguments.
+5. **mocks** — `scenarioSet`.
+6. **launch** — iOS `app.launch()`, Android relaunch, web `reload` (`goto` on
+   a reopen). Exactly once.
+7. **receipt** — for each screen the payload names that is checked at this
+   point (§10.5).
+8. **setup**.
+
+- A launch happens only when there is a `launch`, `mocks` or a non-empty
+  initialState. With none of them the driver does not launch, as before.
+- An empty initialState (`viewModel: {}`, `viewModels: {}`) is the same as
+  none: no payload, and not a reason to launch.
+- With `caseIsolation: "reopen"`, steps 1–8 run again before each case; the
+  case's payload is the file's initialState merged with the case's, key by
+  key (shallow: a case's value replaces the file's value for that key
+  whole, objects included; a case's `null` is a value and replaces it too).
+  A case gated out (skip / platform / responsive) opens nothing.
+- With `shared` (the default), a case-level initialState cannot be
+  delivered — the screen is opened once, before the first case. Validate
+  error; the driver fails that case only (`failureReason: "setup"`, code
+  `case-initial-state-needs-reopen`) and still delivers the file's payload.
+- Cleanup: iOS — the next launch removes the four owned keys first (§5);
+  Android — extras belong to one intent; web — the runner removes
+  `JSONUI_TEST_ARGS` and `JSONUI_TEST_INITIAL_STATE` from sessionStorage at
+  the end of the file.
+
+The payload (`JSONUI_TEST_INITIAL_STATE`, a JSON string):
+
+```json
+{
+  "version": 1,
+  "launchId": "6F1C2A9E-3B7D-4C1E-9A55-0D2F8E7B4C11",
+  "screens": { "login": { "email": "test@example.com", "password": "" } }
+}
+```
+
+- `launchId`: a UUID the driver makes for each launch.
+- `screens`: in a screen test, the screen under test only, with the file's
+  `initialState.viewModel` (merged with the case's on a reopen); in a flow,
+  `initialState.viewModels` as written. Keys of `viewModels` are screen ids,
+  the same values the flow's steps write in `screen`.
+- The driver does not judge the values: an unknown key, a `null` or a value
+  of the wrong type travels in the payload and the app rejects it (§10.3).
+  The validator judges them before the run.
+- Flows: a file or case a flow references runs inside the flow without its
+  own initialState — the flow's launch has already happened. It is not
+  applied; validate and the driver warn (`referenced-initial-state-ignored`).
+  `initialState.screen` is no longer part of the flow schema.
+
+### 10.3 Applying it in the app
+
+- **Reading**: iOS — `ProcessInfo.processInfo.environment`, once. Android —
+  the intent extra of the Activity the screen is in; never kept in process
+  memory across launches. Web — sessionStorage.
+- **Gate**: the same as the screen marker. iOS — DEBUG, or the Info.plist key
+  `com.swiftjsonui.SCREEN_MARKER`; Android — `FLAG_DEBUGGABLE`, or the
+  meta-data `com.kotlinjsonui.SCREEN_MARKER`; web — `NODE_ENV !==
+  'production'`. A closed gate means no receiving and no bridge.
+- **Once**: consumption is recorded per `launchId × screenId`. A screen built
+  again in the same launch (navigated away and back, recreated) is not
+  applied again. Web also removes the consumed screen from the stored
+  payload.
+- **When**: after launch, the first time that screen appears. A ViewModel
+  `init` or `onAppear` may already have run with default values by then;
+  values an API provides are made with `mocks`, not initialState.
+- **Keys**: Data names of that screen (the layout's `data` section), top
+  level only. No dot notation (`user.name` is one key, and it is not a Data
+  name). Keys are case-sensitive. Properties of the ViewModel that are not
+  in `data` cannot be set.
+
+**Types.** A key is checked in this order: not a data field → unsupported
+type → null → type. Every key is judged on its own: the accepted ones are
+applied even when others are rejected.
+
+- Class spelling: the class as the layout writes it, read with the
+  generators' vocabulary (`type_mapping.json`): `Integer` is `Int`, `Number`
+  is `Double`, `Boolean` / `bool` are `Bool`, and lower-case spellings are
+  their capitalised class. Optional is a trailing `?` and nothing else.
+
+| data class | accepts | notes |
+|---|---|---|
+| String | string | |
+| Int | number with no fractional part, from −2147483648 to 2147483647 | `2.0` is accepted (JavaScript cannot tell it from `2`, so it is the only rule all three faces can apply alike); `1.5`, `true`, `"1"`, `2147483648` are rejected |
+| Double / Float / CGFloat / Number | any number, integers included | |
+| Bool | boolean | `0` / `1` / `"true"` are rejected |
+| Color | string (a colour token or hex) | resolved as the existing data update resolves it |
+| `Array(X)` / `[X]` / `List<X>`, X one of the classes above | array whose every element is X | elements are not optional: `["a", null]` is rejected for `Array(String)` |
+| `Array` | array of strings / numbers / booleans | a nested array or object is rejected |
+| `Object` / `Hash` | object whose values are strings / numbers / booleans | a nested array or object is rejected |
+| any of the above with a trailing `?` | the same, plus `null` | |
+| closures / event handlers, `CollectionDataSource`, `Void`, `Visibility`, `Image`, `EdgeInsets`, `Dp`, `Alignment`, an array of a custom type (`[OrderItem]`), any other class | nothing | `unsupported type <class>`, also for `null` on an optional one |
+
+`Visibility` is unsupported because its value differs per face (an enum on
+SwiftUI, a Boolean on Compose); accepting it would first need a vocabulary
+of values.
+
+**Rejection reasons** (fixed strings; `<class>` is the class as the layout
+spells it, `?` included):
+
+- `not a data field`
+- `type mismatch: expected <class>`
+- `null for non-optional <class>`
+- `unsupported type <class>`
+- Android only: `viewModel has no updateData` (the generated ViewModel lacks
+  the update block; the build warns about it)
+
+The libraries do not apply through the existing data update
+(`update(dictionary:)`, `fromMap`), which drops a value that does not fit
+without saying so; the generators emit a checking apply function.
+
+### 10.4 The state bridge (app → driver)
+
+For each screen showing, while the gate is open:
+
+```json
+{
+  "launchId": "6F1C2A9E-3B7D-4C1E-9A55-0D2F8E7B4C11",
+  "initialState": { "applied": ["email"], "rejected": [{ "key": "nickname", "reason": "not a data field" }] },
+  "data": { "email": "test@example.com", "password": "" }
+}
+```
+
+- `launchId`: the launch the app is in, or `null` when it was not given one.
+- `initialState`: present only when this screen applied a payload in this
+  launch; `null` otherwise.
+- `data`: the screen's Data, the fields whose class the table in §10.3
+  accepts.
+- Published again every time the data changes. Test builds only, so it is not
+  throttled.
+- Where:
+  - iOS: the `accessibilityValue` of a dedicated leaf with the identifier
+    `__state_<screenId>` — a transparent leaf like the screen marker, separate
+    from it so the marker stays one per screen. Over 32 KB the value is
+    `{"truncated": <bytes>}` instead.
+  - Android: the semantics key `JsonUIState` (a JSON string) on the screen
+    marker node itself; no extra node (a zero-size node drops out of the
+    tree).
+  - Web: `window.__JSONUI_STATE__[screenId]`.
+- Two instances of one screen showing at once: which one's bridge is read is
+  not specified.
+
+### 10.5 What the driver checks
+
+- **Receipt**: after a launch that carried a payload, the driver waits for the
+  screen under test's bridge to show `initialState` with the same `launchId`,
+  up to `screenReadyTimeout` (web: the existing setting; iOS and Android: a
+  new setting of the same name; 15000 ms by default).
+  - None by then → the cases fail with `failureReason: "setup"` (shared: all
+    the cases of the file; reopen: that case). The message lists the likely
+    causes: a library older than the versions above (rebuild with this
+    jsonui-cli); a build with the gate closed; on web, a page that does not
+    go through the generated hook; a screen id that does not match.
+  - Any `rejected` entry → the same failure, listing each key and reason.
+- **Flows**: each screen in `viewModels` is checked the first time the flow
+  reaches it — when a step's `screen` changes and the implicit screen check
+  passes. Same judgement. A screen in `viewModels` the flow never reaches is
+  a warning.
+- **Default state provider**: when the harness passes none, `state` resolves
+  its `path` in the bridge `data` of the screen §6 names. The path rule and
+  the bridge outcomes are `state-path.json`:
+  - absent bridge, or a bridge without `data` → pending (auto-wait keeps
+    polling; the timeout says the bridge is absent);
+  - `truncated` → fails at once ("the iOS bridge holds up to 32 KB");
+  - otherwise the path resolves or it does not; not resolving is pending.
+
+### 10.6 What launch covers
+
+- Web `clearState` covers cookies and local / session storage, not IndexedDB.
+- iOS `clearState` and `arguments` on every face are delivered (env / extra /
+  storage) and no further: the app-side reader is the app's (§5).
+
+### 10.7 Shared vectors
+
+| file | input → expected | run by |
+|---|---|---|
+| `specs/vectors/initial-state-payload.json` | test file (+ referenced files) → launches with their `screens`, case failures, warnings, validate errors | 3 drivers, `jsonui-test validate` |
+| `specs/vectors/initial-state-coercion.json` | declared data (name, class) + input → applied keys, rejected keys with reasons | 3 generators, 2 libraries |
+| `specs/vectors/state-path.json` | bridge `data` + path → value or not resolved; bridge → pending / truncated / value / unresolved | 3 drivers |
+
+Expected results are codes, not messages; each implementation writes its own
+message from the code. `launchId` is random and is not compared; order inside
+objects and of applied / rejected is not compared.
+
+| code | where | meaning |
+|---|---|---|
+| `case-initial-state-needs-reopen` | driver (case `setup` failure), validate | a case-level initialState in a `shared` file |
+| `referenced-initial-state-ignored` | driver warning, validate warning | a flow references a file / case that has an initialState |
+| `flow-initial-state-screen-removed` | validate | a flow writes `initialState.screen` |
+
+jsonui-cli keeps one more vector in `shared/core/`: layout → Data names and
+classes, so that validate (Python) and the three generators (Ruby) collect the
+same names.
+
+### 10.8 Not covered
+
+- An action that sets state mid-run.
+- State that is not the ViewModel's `data`.
+- A flow's starting screen (`initialState.screen` is removed).
+- Reading `JSONUI_TEST_ARGS` / `JSONUI_TEST_CLEAR_STATE` in the app.

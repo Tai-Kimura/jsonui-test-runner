@@ -210,7 +210,7 @@ tests/
 | `disabled` | 要素が無効 | `id`, `timeout?` | - |
 | `text` | テキストを検証（`equals`／`contains`） | `id`, `equals?`, `contains?`, `timeout?` | - |
 | `count` | 要素数を検証（`equals: 0` は不存在で成立） | `id`, `equals`, `timeout?` | - |
-| `state` | ViewModel 状態を検証（`path` はドット記法、StateProvider 必須） | `path`, `equals`, `timeout?` | - |
+| `state` | ViewModel の data を検証（`path` はドット記法。ハーネスの provider は不要 — JsonUI ライブラリ ≥ SwiftJsonUI 10.30.0 / KotlinJsonUI 2.44.0 の state ブリッジを読む） | `path`, `equals`, `timeout?` | - |
 | `screenshot` | ベースライン画像とのビジュアル比較（ベースライン無しは新規作成＋警告） | `name`, `cropId?`, `threshold?=98` | - |
 | `openedUrl` | 直近の `window.open` 呼び出しの URL を検証 | `equals?`, `contains?`, `timeout?` | Web のみ（`when.platform: web` でゲート） |
 | `screen` | 指定画面の表示を検証（排他は主張しない — 埋め込み／タブ等で複数同時あり得る） | `name`, `timeout?` | - |
