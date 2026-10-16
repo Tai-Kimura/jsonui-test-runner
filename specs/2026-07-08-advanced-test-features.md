@@ -523,7 +523,9 @@ For each screen showing, while the gate is open:
   implicit screen check, and the receipt is still checked the first time a
   step's `screen` changes to that screen. A screen leaves the pending set only
   once its receipt passed, so a retried flow body checks it again. A screen in
-  `viewModels` the flow never reaches is a warning.
+  `viewModels` the flow never reaches is a warning: a screen still pending
+  when the flow ends, so a screen an earlier attempt reached but did not
+  confirm is a warning too when the attempt that passed never went there.
 - **Default state provider**: when the harness passes none, `state` resolves
   its `path` in the bridge `data` of the screen §6 names. The path rule and
   the bridge outcomes are `state-path.json`:
