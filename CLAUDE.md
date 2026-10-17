@@ -239,6 +239,7 @@ tests/
 - テストルートの `launch`: `clearState` / `permissions` / `arguments`（起動前に runner が適用。web も runner が適用する — ハーネスが呼ぶ helper は無い。順序と同じ起動で運ぶもの（initialState・mocks）は spec §10.2）
 - `readText`で読んだ値は `@{変数名}` で実行時参照（ロード時args置換→実行時変数の順で解決）
 - 結果JSON（`schemas/results.schema.json`）→ `jsonui-test report --format junit|html` で変換
+- 進捗（`schemas/progress.schema.json`）→ 3ドライバーが実行中に1行1件で出す（Web はファイル、Android は logcat、iOS は unified logging）。形を変えるときは3ドライバーと jsonui-cli の写し（`test_tools/tests/schema_fixtures/`）を同時に。キーを足すときは `v` を上げる
 - セマンティクスのSSoT: `specs/2026-07-08-advanced-test-features.md`（ドライバー実装は必ずここに従う）
 
 ## 要素の特定方法

@@ -74,7 +74,9 @@ jsonui-test-runner/
 ├── schemas/                    # JSON Schema定義
 │   ├── screen-test.schema.json
 │   ├── flow-test.schema.json
-│   └── actions.schema.json
+│   ├── actions.schema.json
+│   ├── results.schema.json
+│   └── progress.schema.json
 ├── drivers/                    # プラットフォーム別ドライバー
 │   ├── ios/                    # XCUITest実装
 │   ├── android/                # UIAutomator実装
@@ -223,6 +225,18 @@ git submodule update --init --recursive
 jsonui-test report results-web.json results-ios.json --format junit -o report.xml
 jsonui-test report results-web.json --format html -o report.html
 ```
+
+### テストの進捗
+
+結果JSONは実行の最後にしか出ないため、各ドライバーは実行中の進捗も1行1件のJSON（`schemas/progress.schema.json`）で出します。verbose に関係なく常に出し、出せなくてもテストの結果には影響しません。`jui viz` が読みます。
+
+| ドライバー | 出し先 |
+|---|---|
+| Web | 環境変数 `JSONUI_TEST_PROGRESS_DIR` のフォルダに `<run>.jsonl` を追記（変数が無いか、フォルダが無ければ何もしない） |
+| Android | logcat のタグ `JsonUITestProgress`（Info） |
+| iOS | unified logging（subsystem `com.jsonui.testrunner`、category `progress`、public） |
+
+1件の `event` は `run_start` / `case_start` / `case_end` / `run_end`。`test` と `case` は結果JSONの `testName` / `caseName` と同じ文字列です。再試行は試行ごとに `case_start` / `case_end` の組を出し、走らなかったケースは `attempt: 0`・`status: "skipped"` の `case_end` 1行だけです。キーを足すときは `v` を上げます。
 
 ## 対応JsonUIライブラリ
 
