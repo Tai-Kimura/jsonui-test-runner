@@ -234,8 +234,8 @@ jsonui-test report results-web.json --format html -o report.html
 | Android | 端末の `/data/local/tmp/jsonui-test-results/<package>/`（`jui viz` が `adb pull` する） |
 | Web | `~/.local/state/jsonui-test/results/web/<package.json の name>/` |
 
-- ファイル名は `<UTC時刻>-<run>.json`。中身は結果JSONに `run`（進捗の run id）・`app`・`suites[].file`（進捗の `file` と同じ文字列）を足したものです。この3つは既定の置き場のファイルにだけ書き、`resultsPath` のファイルは今までどおりです。
-- 置き場ごとに、14日より古いものを消し、新しい500本だけを残します。消すのは上の名前の形のファイルだけです。
+- ファイル名は `<UTC時刻>-<run>-<ファイル鍵8桁>.json`。ファイル鍵は、その run のテストファイル（`suites[].file`。複数あるときは重複を除いて並べ、改行でつないだもの）の UTF-8 の SHA-256 の先頭8桁です。中身は結果JSONに `run`（進捗の run id）・`app`・`suites[].file`（進捗の `file` と同じ文字列）を足したものです。この3つは既定の置き場のファイルにだけ書き、`resultsPath` のファイルは今までどおりです。
+- 置き場ごとに、**テストファイルごとの最新の1本は常に残します**。14日より古いものを消す規則と、500本までに減らす規則は、それより新しい同じテストファイルの結果に置き換えられた古いもの（と、ファイル鍵の無い前の形の名前）にだけ当てます。流し直していないテストファイルの結果は、何日たっても、ほかのファイルを何回流しても消えません。消すのは上の名前の形（前の形を含む）のファイルだけです。規則と検体は `specs/vectors/results-prune.json`（3つのドライバーと `jui viz` が写しを持ちます）。
 - 環境変数 `JSONUI_TEST_RESULTS_DIR`（絶対パス）で置き場の根を変えられます。効くのはホスト側だけです（iOS は `TEST_RUNNER_JSONUI_TEST_RESULTS_DIR` として xcodebuild に渡す、Web、`jui viz`）。Android の端末側には効きません。
 
 ### テストの進捗
