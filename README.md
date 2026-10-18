@@ -226,6 +226,18 @@ jsonui-test report results-web.json results-ios.json --format junit -o report.xm
 jsonui-test report results-web.json --format html -o report.html
 ```
 
+`resultsPath` を設定しないときも、各ドライバーは run（テストファイル1本）ごとに新しいファイルを既定の置き場に書きます（上書きしない）。`jui viz` が読み、サーバーを起動し直しても前の run の合否が残ります。
+
+| ドライバー | 既定の置き場 |
+|---|---|
+| iOS（シミュレータ） | `$SIMULATOR_HOST_HOME/.local/state/jsonui-test/results/ios/<runner の bundle id>/`（実機では書かない） |
+| Android | 端末の `/data/local/tmp/jsonui-test-results/<package>/`（`jui viz` が `adb pull` する） |
+| Web | `~/.local/state/jsonui-test/results/web/<package.json の name>/` |
+
+- ファイル名は `<UTC時刻>-<run>.json`。中身は結果JSONに `run`（進捗の run id）・`app`・`suites[].file`（進捗の `file` と同じ文字列）を足したものです。この3つは既定の置き場のファイルにだけ書き、`resultsPath` のファイルは今までどおりです。
+- 置き場ごとに、14日より古いものを消し、新しい500本だけを残します。消すのは上の名前の形のファイルだけです。
+- 環境変数 `JSONUI_TEST_RESULTS_DIR`（絶対パス）で置き場の根を変えられます。効くのはホスト側だけです（iOS は `TEST_RUNNER_JSONUI_TEST_RESULTS_DIR` として xcodebuild に渡す、Web、`jui viz`）。Android の端末側には効きません。
+
 ### テストの進捗
 
 結果JSONは実行の最後にしか出ないため、各ドライバーは実行中の進捗も1行1件のJSON（`schemas/progress.schema.json`）で出します。verbose に関係なく常に出し、出せなくてもテストの結果には影響しません。`jui viz` が読みます。
