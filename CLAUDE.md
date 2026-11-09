@@ -172,30 +172,31 @@ tests/
 <!-- generated:actions -->
 | アクション | 説明 | パラメータ | プラットフォーム |
 |---|---|---|---|
-| `tap` | 要素をタップ | `id`, `text?`, `retryTapIfNoChange?=false` | `retryTapIfNoChange`（ゴーストタップ緩和）は Web では受理のみ・no-op |
-| `doubleTap` | 要素をダブルタップ | `id` | - |
-| `longPress` | 要素を長押し | `id`, `duration?=500` | - |
-| `input` | 指定要素にテキスト入力 | `id`, `value` | - |
+| `tap` | 要素をタップ | `id`, `within?`, `text?`, `retryTapIfNoChange?=false` | `retryTapIfNoChange`（ゴーストタップ緩和）は Web では受理のみ・no-op |
+| `doubleTap` | 要素をダブルタップ | `id`, `within?` | - |
+| `longPress` | 要素を長押し | `id`, `within?`, `duration?=500` | - |
+| `input` | 指定要素にテキスト入力 | `id`, `within?`, `value` | - |
 | `typeText` | フォーカス中の欄へキーボード入力（要素 id 不要。不可視のコード入力欄など向け） | `value`, `timeout?` | - |
-| `clear` | 入力内容をクリア | `id` | - |
-| `scroll` | 指定方向へスクロール | `id`, `direction`, `amount?` | - |
-| `scrollUntilVisible` | 要素が見えるまでスクロール（終端到達で即失敗） | `id`, `container?`, `direction?=down`, `timeout?=20000` | - |
-| `swipe` | 要素をスワイプ | `id`, `direction` | - |
-| `waitFor` | 要素の出現を待機 | `id`, `timeout?=5000` | - |
-| `waitForAny` | いずれかの要素の出現を待機 | `ids`, `timeout?=5000` | - |
+| `clear` | 入力内容をクリア | `id`, `within?` | - |
+| `scroll` | 指定方向へスクロール | `id`, `within?`, `direction`, `amount?` | - |
+| `scrollUntilVisible` | 要素が見えるまでスクロール（終端到達で即失敗） | `id`, `within?`, `container?`, `direction?=down`, `timeout?=20000` | - |
+| `swipe` | 要素をスワイプ | `id`, `within?`, `direction` | - |
+| `waitFor` | 要素の出現を待機 | `id`, `within?`, `timeout?=5000` | - |
+| `waitForAny` | いずれかの要素の出現を待機 | `ids`, `within?`, `timeout?=5000` | - |
 | `wait` | 指定時間待機 | `ms` | - |
 | `back` | 戻る操作 | - | - |
 | `hideKeyboard` | ソフトキーボードを閉じる（未表示なら no-op） | - | - |
 | `screenshot` | スクリーンショットを保存 | `name` | - |
 | `alertTap` | アラート／ダイアログのボタンをタップ | `button`, `timeout?=5000` | - |
-| `selectOption` | ドロップダウン／ピッカーから選択 | `id`, `value?`, `index?`, `timeout?=5000` | - |
-| `tapItem` | コレクション内のアイテムをタップ | `id`, `index`, `timeout?=5000` | - |
-| `selectTab` | タブを選択 | `id`, `index`, `timeout?=5000` | - |
-| `readText` | 要素のテキストを実行時変数に読む（`@{変数名}` で後続参照） | `id`, `variable`, `timeout?=5000` | - |
+| `selectOption` | ドロップダウン／ピッカーから選択 | `id`, `within?`, `value?`, `index?`, `timeout?=5000` | - |
+| `tapItem` | コレクション内のアイテムをタップ | `id`, `within?`, `index`, `timeout?=5000` | - |
+| `selectTab` | タブを選択 | `id`, `within?`, `index`, `timeout?=5000` | - |
+| `readText` | 要素のテキストを実行時変数に読む（`@{変数名}` で後続参照） | `id`, `within?`, `variable`, `timeout?=5000` | Slider は今の値の字（iOS: accessibility value〈0〜1・0〜100 は「37%」〉、Android: RangeInfo の current、Web: input の value） |
+| `setSliderValue` | Slider を値に置く（値はスライダーの単位。範囲外・刻みから外れる値は触る前に失敗） | `id`, `within?`, `value`, `range?`, `step?`, `timeout?=5000` | iOS は指でつまみを引くのでちょうどにはならず、許容（`step` があれば step/2、無ければ範囲の 0.5%）に入れば成功、置けた値を警告に残す。iOS は `range` を書く（無ければ両端まで動かして読む） |
 | `repeat` | ステップ群を繰り返す（`times`／`while` 併用可、安全上限 100 回） | `times?`, `while?`, `steps` | - |
 | `retry` | 失敗時にブロック全体を再実行 | `maxRetries?=1`, `steps` | - |
 | `setLocation` | モック位置情報を設定 | `latitude`, `longitude` | iOS: SDK 依存 ／ Android: best effort ／ Web: setGeolocation |
-| `addMedia` | メディアフィクスチャを端末に追加（png/jpg/jpeg/gif/mp4。蓄積するため件数でなく存在を検証） | `paths`, `id?`, `timeout?` | Android: ギャラリー（MediaStore）／ iOS: PhotoKit〈シミュレータ限定・photos-add 許可は CLI が自動付与〉／ Web: file input |
+| `addMedia` | メディアフィクスチャを端末に追加（png/jpg/jpeg/gif/mp4。蓄積するため件数でなく存在を検証） | `paths`, `id?`, `within?`, `timeout?` | Android: ギャラリー（MediaStore）／ iOS: PhotoKit〈シミュレータ限定・photos-add 許可は CLI が自動付与〉／ Web: file input |
 | `setMocks` | エンドポイント（operationId）ごとのモックシナリオを切り替え | `mocks` | - |
 | `setViewport` | ビューポートをリサイズ（レスポンシブ検証） | `width`, `height` | Web のみ。iOS/Android は警告付き no-op（`when.responsive` でゲート） |
 | `setOrientation` | 画面の向きを変更 | `orientation` | iOS: XCUIDevice ／ Android: UiDevice ／ Web: モバイルエミュレーション時のみ（他は警告付き no-op） |
@@ -209,15 +210,16 @@ tests/
 <!-- generated:assertions -->
 | アサーション | 説明 | パラメータ | プラットフォーム |
 |---|---|---|---|
-| `visible` | 要素がビューポート内に見えている（画面とすべてのスクロール容器の内側に縦横 1pt/px 以上。中心でなく一部で可。レイアウト上存在するだけでは不可） | `id`, `timeout?` | - |
-| `notVisible` | `visible` の否定（不存在、非表示、またはビューポートの外） | `id`, `timeout?` | - |
-| `hidden` | 要素が描画されていない（不存在、gone、または自身か祖先が invisible / hidden）。位置に依らない: 画面外・スクロール外・モーダルの下・重なりの下・opacity 0・enabled:false は描画されている扱い | `id`, `timeout?` | - |
-| `enabled` | 要素が有効 | `id`, `timeout?` | - |
-| `disabled` | 要素が無効 | `id`, `timeout?` | - |
-| `text` | テキストを検証（`equals`／`contains`） | `id`, `equals?`, `contains?`, `timeout?` | - |
-| `count` | 要素数を検証（`equals: 0` は不存在で成立） | `id`, `equals`, `timeout?` | - |
+| `visible` | 要素がビューポート内に見えている（画面とすべてのスクロール容器の内側に縦横 1pt/px 以上。中心でなく一部で可。レイアウト上存在するだけでは不可） | `id`, `within?`, `timeout?` | - |
+| `notVisible` | `visible` の否定（不存在、非表示、またはビューポートの外） | `id`, `within?`, `timeout?` | - |
+| `hidden` | 要素が描画されていない（不存在、gone、または自身か祖先が invisible / hidden）。位置に依らない: 画面外・スクロール外・モーダルの下・重なりの下・opacity 0・enabled:false は描画されている扱い | `id`, `within?`, `timeout?` | - |
+| `enabled` | 要素が有効 | `id`, `within?`, `timeout?` | - |
+| `disabled` | 要素が無効 | `id`, `within?`, `timeout?` | - |
+| `text` | テキストを検証（`equals`／`contains`） | `id`, `within?`, `equals?`, `contains?`, `timeout?` | - |
+| `count` | 要素数を検証（`equals: 0` は不存在で成立） | `id`, `within?`, `equals`, `timeout?` | - |
+| `value` | Slider の今の値を検証（`equals` との差が許容以内。送られる値を厳密に見るなら bound の data を `state` で） | `id`, `within?`, `equals`, `tolerance?`, `range?`, `step?`, `timeout?` | iOS は既定の許容が setSliderValue と同じ（step/2 か範囲の 0.5%）。iOS で 0〜1・0〜100 のスライダーは `range` が要る |
 | `state` | ViewModel の data を検証（`path` はドット記法。ハーネスの provider は不要 — JsonUI ライブラリ ≥ SwiftJsonUI 10.30.0 / KotlinJsonUI 2.44.0 の state ブリッジを読む） | `path`, `equals`, `timeout?` | - |
-| `screenshot` | ベースライン画像とのビジュアル比較（ベースライン無しは新規作成＋警告） | `name`, `cropId?`, `threshold?=98` | - |
+| `screenshot` | ベースライン画像とのビジュアル比較（ベースライン無しは新規作成＋警告） | `name`, `cropId?`, `within?`, `threshold?=98` | - |
 | `openedUrl` | 直近の `window.open` 呼び出しの URL を検証 | `equals?`, `contains?`, `timeout?` | Web のみ（`when.platform: web` でゲート） |
 | `screen` | 指定画面の表示を検証（排他は主張しない — 埋め込み／タブ等で複数同時あり得る） | `name`, `timeout?` | - |
 <!-- /generated:assertions -->
