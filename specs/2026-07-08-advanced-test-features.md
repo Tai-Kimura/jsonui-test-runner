@@ -467,15 +467,19 @@ applied even when others are rejected.
 | Double / Float / CGFloat / Number | any number, integers included | |
 | Bool | boolean | `0` / `1` / `"true"` are rejected |
 | Color | string (a colour token or hex) | resolved as the existing data update resolves it |
-| `Array(X)` / `[X]` / `List<X>`, X one of the classes above | array whose every element is X | elements are not optional: `["a", null]` is rejected for `Array(String)` |
+| Visibility | one of the strings `visible`, `invisible`, `gone` | exactly these spellings: `"hidden"`, `"Gone"`, `""`, `true`, `0` are rejected |
+| `Array(X)` / `[X]` / `List<X>`, X one of the classes above but Visibility | array whose every element is X | elements are not optional: `["a", null]` is rejected for `Array(String)` |
 | `Array` | array of strings / numbers / booleans | a nested array or object is rejected |
 | `Object` / `Hash` | object whose values are strings / numbers / booleans | a nested array or object is rejected |
 | any of the above with a trailing `?` | the same, plus `null` | |
-| closures / event handlers, `CollectionDataSource`, `Void`, `Visibility`, `Image`, `EdgeInsets`, `Dp`, `Alignment`, an array of a custom type (`[OrderItem]`), any other class | nothing | `unsupported type <class>`, also for `null` on an optional one |
+| closures / event handlers, `CollectionDataSource`, `Void`, an array of `Visibility`, `Image`, `EdgeInsets`, `Dp`, `Alignment`, an array of a custom type (`[OrderItem]`), any other class | nothing | `unsupported type <class>`, also for `null` on an optional one |
 
-`Visibility` is unsupported because its value differs per face (an enum on
-SwiftUI, a Boolean on Compose); accepting it would first need a vocabulary
-of values.
+`Visibility` is the layout's own vocabulary: every face's generated Data
+holds it as the string the `visibility` attribute reads (SwiftUI `String`,
+Compose `String`, web `string`), so the three words are the value on every
+face. It was unsupported until 2026-11-11, when the reason given — the value
+differs per face — was measured not to hold. An array of Visibility stays
+unsupported: no layout attribute reads one.
 
 **Rejection reasons** (fixed strings; `<class>` is the class as the layout
 spells it, `?` included):
