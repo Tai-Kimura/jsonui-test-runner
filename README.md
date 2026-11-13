@@ -128,6 +128,7 @@ git submodule update --init --recursive
 | `alertTap` | アラート／ダイアログのボタンをタップ | `button`, `timeout?=5000` | - |
 | `selectOption` | ドロップダウン／ピッカーから選択 | `id`, `within?`, `value?`, `index?`, `timeout?=5000` | - |
 | `tapItem` | コレクション内のアイテムをタップ | `id`, `within?`, `index`, `timeout?=5000` | - |
+| `moveItem` | コレクションの行を長押しでつかみ、ドラッグで並べ替える（reorderable な Collection） | `id`, `within?`, `from`, `to`, `section?=0`, `handle?`, `timeout?=5000` | - |
 | `selectTab` | タブを選択 | `id`, `within?`, `index`, `timeout?=5000` | - |
 | `readText` | 要素のテキストを実行時変数に読む（`@{変数名}` で後続参照） | `id`, `within?`, `variable`, `timeout?=5000` | Slider は今の値の字（iOS: accessibility value〈0〜1・0〜100 は「37%」〉、Android: RangeInfo の current、Web: input の value） |
 | `setSliderValue` | Slider を値に置く（値はスライダーの単位。範囲外・刻みから外れる値は触る前に失敗） | `id`, `within?`, `value`, `range?`, `step?`, `timeout?=5000` | iOS は指でつまみを引くのでちょうどにはならず、許容（`step` があれば step/2、無ければ範囲の 0.5%）に入れば成功、置けた値を警告に残す。iOS は `range` を書く（無ければ両端まで動かして読む） |
